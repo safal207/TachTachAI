@@ -16,6 +16,7 @@ except ImportError:
 # --- Constants ---
 KB_FILE = os.path.join("knowledge_base", "kb.json")
 SCENARIO_FILE = os.path.join("knowledge_base", "scenarios.json")
+SCREENSHOTS_DIR = os.path.join("reports", "screenshots")
 
 # --- Data Loading Functions ---
 def get_knowledge_base():
