@@ -1,36 +1,22 @@
 {
-    "timestamp": "2025-10-04T00:32:30.123456",
+    "timestamp": "2025-10-04T01:09:00Z",
     "framework_version": "4.0",
     "summary": {
-        "total": 1,
-        "passed": 1,
-        "failed": 0,
-        "success_rate": 100.0
+        "total": 5,
+        "passed": 4,
+        "failed": 1,
+        "success_rate": 80.0
     },
     "tests": [
         {
-            "name": "perf_test",
-            "status": "PASSED",
-            "steps_executed": 2,
-            "performance": {
-                "total_duration_ms": 205.8,
-                "steps": [
-                    {
-                        "step": 1,
-                        "duration_ms": 55.5,
-                        "baseline_ms": 50.0,
-                        "regression": false,
-                        "slowdown_percent": 11.0
-                    },
-                    {
-                        "step": 2,
-                        "duration_ms": 150.3,
-                        "baseline_ms": 100.0,
-                        "regression": true,
-                        "slowdown_percent": 50.3
-                    }
-                ],
-                "has_regression": true
+            "name": "login_test",
+            "status": "FAILED",
+            "failed_step": 2,
+            "step_description": "type 'wrong_password'",
+            "error": "Assertion failed: text 'Welcome' not found.",
+            "screenshot": "reports/screenshots/login_test_failure.png",
+            "diagnostics": {
+                "network_available": true
             }
         }
     ]

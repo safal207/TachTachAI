@@ -15,6 +15,8 @@
             --passed-color: #28a745;
             --failed-color: #dc3545;
             --regression-color: #fd7e14;
+            --agent-active-color: #28a745;
+            --agent-paused-color: #6c757d;
         }
         body {
             font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
@@ -43,10 +45,10 @@
             padding-bottom: 0.5em;
             color: var(--primary-color);
         }
-        #dashboard-section {
+        #dashboard-section, #agent-status-card {
             grid-column: 1 / -1;
-            display: none;
         }
+        #dashboard-section { display: none; }
         #summary-grid {
             display: grid;
             grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
@@ -59,89 +61,63 @@
             border-radius: 5px;
             text-align: center;
         }
-        .summary-item .value {
-            font-size: 2em;
-            font-weight: bold;
-        }
-        .summary-item .label {
-            font-size: 0.9em;
-            color: #666;
-        }
-        table {
-            width: 100%;
-            border-collapse: collapse;
-            margin-top: 1em;
-        }
-        th, td {
-            border: 1px solid var(--border-color);
-            padding: 0.75em;
-            text-align: left;
-            vertical-align: top;
-        }
-        th {
-            background-color: var(--bg-color);
-        }
+        .summary-item .value { font-size: 2em; font-weight: bold; }
+        .summary-item .label { font-size: 0.9em; color: #666; }
+        table { width: 100%; border-collapse: collapse; margin-top: 1em; }
+        th, td { border: 1px solid var(--border-color); padding: 0.75em; text-align: left; vertical-align: top; }
+        th { background-color: var(--bg-color); }
         .status-PASSED { color: var(--passed-color); font-weight: bold; }
         .status-FAILED { color: var(--failed-color); font-weight: bold; }
-        .perf-regression-tag {
-            background-color: var(--regression-color);
-            color: white;
-            font-size: 0.8em;
-            font-weight: bold;
-            padding: 0.2em 0.5em;
-            border-radius: 4px;
-            margin-left: 10px;
-        }
-        .perf-details {
-            font-size: 0.9em;
-        }
-        .perf-step {
-            margin-top: 5px;
-            padding-top: 5px;
-            border-top: 1px solid #eee;
-        }
-        .perf-step:first-child {
-            border-top: none;
-            padding-top: 0;
-        }
-        .perf-step.regression {
-            color: var(--regression-color);
-        }
+        .perf-regression-tag { background-color: var(--regression-color); color: white; font-size: 0.8em; font-weight: bold; padding: 0.2em 0.5em; border-radius: 4px; margin-left: 10px; }
+        .perf-details { font-size: 0.9em; }
+        .perf-step { margin-top: 5px; padding-top: 5px; border-top: 1px solid #eee; }
+        .perf-step:first-child { border-top: none; padding-top: 0; }
+        .perf-step.regression { color: var(--regression-color); }
         a { color: var(--primary-color); text-decoration: none; }
         a:hover { text-decoration: underline; }
 
         /* Form styling */
         .form-group { margin-bottom: 1em; }
         label { display: block; margin-bottom: 0.5em; font-weight: bold; }
-        input[type="text"], input[type="file"], select, textarea {
-            width: 100%;
-            padding: 0.75em;
-            border: 1px solid var(--border-color);
-            border-radius: 4px;
-            box-sizing: border-box;
-        }
-        textarea {
-            min-height: 120px;
-            font-family: monospace;
-        }
-        button {
-            background-color: var(--primary-color);
-            color: white;
-            padding: 0.8em 1.5em;
-            border: none;
-            border-radius: 4px;
-            cursor: pointer;
-            font-size: 1em;
-            transition: background-color 0.2s;
-        }
-        button:hover {
-            background-color: #0056b3;
-        }
+        input[type="text"], input[type="file"], select, textarea { width: 100%; padding: 0.75em; border: 1px solid var(--border-color); border-radius: 4px; box-sizing: border-box; }
+        textarea { min-height: 120px; font-family: monospace; }
+        button { background-color: var(--primary-color); color: white; padding: 0.8em 1.5em; border: none; border-radius: 4px; cursor: pointer; font-size: 1em; transition: background-color 0.2s; }
+        button:hover { background-color: #0056b3; }
+
+        /* Agent Status Card */
+        #agent-status-card-content { display: flex; justify-content: space-between; align-items: center; }
+        #agent-mode-switch { display: flex; align-items: center; }
+        .switch { position: relative; display: inline-block; width: 100px; height: 34px; }
+        .switch input { opacity: 0; width: 0; height: 0; }
+        .slider { position: absolute; cursor: pointer; top: 0; left: 0; right: 0; bottom: 0; background-color: #ccc; transition: .4s; border-radius: 34px; }
+        .slider:before { position: absolute; content: ""; height: 26px; width: 26px; left: 4px; bottom: 4px; background-color: white; transition: .4s; border-radius: 50%; }
+        input:checked + .slider { background-color: var(--agent-active-color); }
+        input:checked + .slider:before { transform: translateX(66px); }
+        .mode-label { margin: 0 10px; font-weight: bold; }
+        #command-center fieldset { border: none; padding: 0; margin: 0; }
+        #command-center fieldset:disabled { opacity: 0.5; }
     </style>
 </head>
 <body>
-
     <div class="container">
+        <div class="card" id="agent-status-card">
+            <h2>🤖 AI QA Agent Control</h2>
+            <div id="agent-status-card-content">
+                <div>
+                    <p><strong>Status:</strong> <span id="agent-status-text">Paused</span></p>
+                    <p><strong>Current Focus:</strong> <span id="agent-focus">Idle</span></p>
+                </div>
+                <div id="agent-mode-switch">
+                    <span class="mode-label" id="manual-label">Manual</span>
+                    <label class="switch">
+                        <input type="checkbox" id="mode-toggle">
+                        <span class="slider"></span>
+                    </label>
+                    <span class="mode-label" id="auto-label">Autonomous</span>
+                </div>
+            </div>
+        </div>
+
         <div class="card" id="upload-card">
             <h2>1. Upload Report</h2>
             <div class="form-group">
@@ -151,26 +127,28 @@
         </div>
 
         <div class="card" id="command-center">
-            <h2>3. Generate Instructions</h2>
-            <form id="command-form">
-                <div class="form-group">
-                    <label for="command-select">Select Command</label>
-                    <select id="command-select">
-                        <option value="run_tests">run_tests</option>
-                        <option value="run_tests_with_data">run_tests_with_data</option>
-                        <option value="create_scenario">create_scenario</option>
-                        <option value="update_baseline">update_baseline</option>
-                        <option value="create_performance_baseline">create_performance_baseline</option>
-                        <option value="get_status">get_status</option>
-                    </select>
-                </div>
-                <div id="params-container"></div>
-                <button type="button" id="generate-btn">Download instructions.json</button>
-            </form>
+            <fieldset id="command-fieldset">
+                <h2>2. Generate Instructions</h2>
+                <form id="command-form">
+                    <div class="form-group">
+                        <label for="command-select">Select Command</label>
+                        <select id="command-select">
+                            <option value="run_tests">run_tests</option>
+                            <option value="run_tests_with_data">run_tests_with_data</option>
+                            <option value="create_scenario">create_scenario</option>
+                            <option value="update_baseline">update_baseline</option>
+                            <option value="create_performance_baseline">create_performance_baseline</option>
+                            <option value="get_status">get_status</option>
+                        </select>
+                    </div>
+                    <div id="params-container"></div>
+                    <button type="button" id="generate-btn">Download instructions.json</button>
+                </form>
+            </fieldset>
         </div>
 
         <div class="card" id="dashboard-section">
-            <h2>2. Test Run Dashboard</h2>
+            <h2>Test Run Dashboard</h2>
             <div id="summary-grid"></div>
             <h3>Detailed Results</h3>
             <table id="results-table">
@@ -193,10 +171,12 @@
             const dashboardSection = document.getElementById('dashboard-section');
             const summaryGrid = document.getElementById('summary-grid');
             const resultsTableBody = document.querySelector('#results-table tbody');
-
             const commandSelect = document.getElementById('command-select');
             const paramsContainer = document.getElementById('params-container');
             const generateBtn = document.getElementById('generate-btn');
+            const modeToggle = document.getElementById('mode-toggle');
+            const commandFieldset = document.getElementById('command-fieldset');
+            const agentStatusText = document.getElementById('agent-status-text');
 
             const paramTemplates = {
                 run_tests: `<div class="form-group"><label for="param-scenarios">Scenarios (comma-separated, or 'all')</label><input type="text" id="param-scenarios" value="all"></div>`,
@@ -215,9 +195,7 @@
                     try {
                         const data = JSON.parse(e.target.result);
                         renderDashboard(data);
-                    } catch (error) {
-                        alert('Error parsing JSON file: ' + error.message);
-                    }
+                    } catch (error) { alert('Error parsing JSON file: ' + error.message); }
                 };
                 reader.readAsText(file);
             });
@@ -231,21 +209,10 @@
                     <div class="summary-item"><div class="value status-FAILED">${summary.failed}</div><div class="label">Failed</div></div>
                     <div class="summary-item"><div class="value" style="color:var(--regression-color)">${perfRegressions}</div><div class="label">Perf. Regressions</div></div>
                 `;
-
                 resultsTableBody.innerHTML = '';
                 data.tests.forEach(test => {
                     const row = document.createElement('tr');
-
-                    let detailsHTML = '';
-                    if (test.status === 'PASSED') {
-                        detailsHTML = `Executed ${test.steps_executed} steps successfully.`;
-                    } else {
-                        detailsHTML = `Failed at step ${test.failed_step}: <strong>${test.step_description}</strong><br><em>Error: ${test.error}</em><br>`;
-                        if (test.screenshot) {
-                            detailsHTML += `<a href="${test.screenshot}" target="_blank">View Screenshot</a>`;
-                        }
-                    }
-
+                    let detailsHTML = test.status === 'PASSED' ? `Executed ${test.steps_executed} steps successfully.` : `Failed at step ${test.failed_step}: <strong>${test.step_description}</strong><br><em>Error: ${test.error}</em><br>${test.screenshot ? `<a href="${test.screenshot}" target="_blank">View Screenshot</a>` : ''}`;
                     let perfHTML = 'N/A';
                     if (test.performance) {
                         const perf = test.performance;
@@ -253,71 +220,62 @@
                         perfHTML = `<strong>Total: ${perf.total_duration_ms.toFixed(2)}ms</strong> ${regressionTag}<hr class="perf-details">`;
                         perf.steps.forEach(step => {
                             const isReg = step.regression;
-                            const slowdown = step.slowdown_percent !== null ? `(${step.slowdown_percent > 0 ? '+' : ''}${step.slowdown_percent}%)` : '';
+                            const slowdown = step.slowdown_percent !== null ? `(${step.slowdown_percent > 0 ? '+' : ''}${step.slowdown_percent.toFixed(1)}%)` : '';
                             perfHTML += `<div class="perf-step ${isReg ? 'regression' : ''}">Step ${step.step}: ${step.duration_ms}ms / Base: ${step.baseline_ms || 'N/A'}ms ${slowdown}</div>`;
                         });
                     }
-
-                    row.innerHTML = `
-                        <td>${test.name}</td>
-                        <td class="status-${test.status}">${test.status}</td>
-                        <td>${detailsHTML}</td>
-                        <td class="perf-details">${perfHTML}</td>
-                    `;
+                    row.innerHTML = `<td>${test.name}</td><td class="status-${test.status}">${test.status}</td><td>${detailsHTML}</td><td class="perf-details">${perfHTML}</td>`;
                     resultsTableBody.appendChild(row);
                 });
-
                 dashboardSection.style.display = 'block';
             }
+
+            function setAgentMode(isAutonomous) {
+                commandFieldset.disabled = isAutonomous;
+                agentStatusText.textContent = isAutonomous ? 'Active' : 'Paused';
+                agentStatusText.style.color = isAutonomous ? 'var(--agent-active-color)' : 'var(--agent-paused-color)';
+                localStorage.setItem('agentMode', isAutonomous ? 'autonomous' : 'manual');
+            }
+
+            modeToggle.addEventListener('change', (event) => {
+                setAgentMode(event.target.checked);
+            });
 
             function updateCommandParams() {
                 paramsContainer.innerHTML = paramTemplates[commandSelect.value] || '';
             }
-
             commandSelect.addEventListener('change', updateCommandParams);
 
             generateBtn.addEventListener('click', () => {
                 const command = commandSelect.value;
                 const params = {};
-
                 switch (command) {
-                    case 'run_tests':
-                        params.scenarios = document.getElementById('param-scenarios').value.split(',').map(s => s.trim());
-                        break;
-                    case 'run_tests_with_data':
-                        params.scenario_name = document.getElementById('param-scenario_name').value;
-                        params.data_file = document.getElementById('param-data_file').value;
-                        break;
-                    case 'create_scenario':
-                        params.name = document.getElementById('param-name').value;
-                        try {
-                            params.steps = JSON.parse(document.getElementById('param-steps').value);
-                        } catch (e) { alert("Invalid JSON in steps: " + e.message); return; }
-                        break;
-                    case 'update_baseline':
-                        params.visual_test_name = document.getElementById('param-visual_test_name').value;
-                        break;
-                    case 'create_performance_baseline':
-                        params.test_name = document.getElementById('param-test_name').value;
-                        break;
+                    case 'run_tests': params.scenarios = document.getElementById('param-scenarios').value.split(',').map(s => s.trim()); break;
+                    case 'run_tests_with_data': params.scenario_name = document.getElementById('param-scenario_name').value; params.data_file = document.getElementById('param-data_file').value; break;
+                    case 'create_scenario': params.name = document.getElementById('param-name').value; try { params.steps = JSON.parse(document.getElementById('param-steps').value); } catch (e) { alert("Invalid JSON in steps: " + e.message); return; } break;
+                    case 'update_baseline': params.visual_test_name = document.getElementById('param-visual_test_name').value; break;
+                    case 'create_performance_baseline': params.test_name = document.getElementById('param-test_name').value; break;
                 }
-
-                const instructions = { command, params };
-                downloadJSON(instructions, 'claude_instructions.json');
+                downloadJSON({ command, params }, 'claude_instructions.json');
             });
 
             function downloadJSON(data, filename) {
                 const blob = new Blob([JSON.stringify(data, null, 4)], { type: 'application/json' });
                 const url = URL.createObjectURL(blob);
                 const a = document.createElement('a');
-                a.href = url;
-                a.download = filename;
+                a.href = url; a.download = filename;
                 document.body.appendChild(a);
                 a.click();
                 document.body.removeChild(a);
                 URL.revokeObjectURL(url);
             }
 
+            // Initial setup
+            const savedMode = localStorage.getItem('agentMode');
+            if (savedMode === 'autonomous') {
+                modeToggle.checked = true;
+            }
+            setAgentMode(modeToggle.checked);
             updateCommandParams();
         });
     </script>

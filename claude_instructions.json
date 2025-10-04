@@ -2,7 +2,7 @@
     "command": "run_tests",
     "params": {
         "scenarios": [
-            "perf_test"
+            "all"
         ]
     }
 }

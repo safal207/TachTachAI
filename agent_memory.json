@@ -1,0 +1,26 @@
+{
+  "goals": {
+    "target_success_rate": 95.0,
+    "max_regression_tolerance": 2,
+    "coverage_increase_target": 10
+  },
+  "decision_history": [
+    {
+      "timestamp": "2025-10-04T01:00:00Z",
+      "situation": "Initial state",
+      "decision": "Bootstrap",
+      "reasoning": "First run of the agent.",
+      "commands": [],
+      "outcome": "System initialized.",
+      "effectiveness": "neutral"
+    }
+  ],
+  "learned_patterns": {
+    "notes": "This section will store correlations and patterns learned by the agent over time."
+  },
+  "metrics": {
+    "total_decisions": 1,
+    "successful_decisions": 1,
+    "autonomous_tests_created": 0
+  }
+}
