@@ -2,6 +2,7 @@ import os
 import time
 import subprocess
 import datetime
+import platform
 import pyautogui
 import psutil
 from logger import log_action
@@ -25,16 +26,34 @@ def get_system_stats():
 
 def check_network(host="8.8.8.8", port=53, timeout=3):
     """
-    Checks for internet connectivity by attempting to connect to Google's DNS.
-    :return: True if connection is successful, False otherwise.
+    Checks for internet connectivity by attempting to reach a DNS host via ``ping``.
+    The invocation is tailored to the underlying platform (Windows vs. Unix-like
+    systems) so that timeouts are respected consistently.
+    :return: True if the command succeeds, False otherwise.
     """
     try:
-        # Using subprocess to run ping for broader compatibility.
-        # -c 1 means send 1 packet.
-        # -W 2 means wait 2 seconds for a response.
-        command = ["ping", "-c", "1", "-W", "2", host]
+        system = platform.system()
+
+        # Build the ping command using platform specific flags.
+        if system == "Windows":
+            # Windows uses "-n" for the packet count and expects timeout in ms via "-w".
+            command = [
+                "ping",
+                "-n",
+                "1",
+                "-w",
+                str(int(timeout * 1000)),
+                host,
+            ]
+        else:
+            # Unix-like systems use "-c" for packet count and timeout is in seconds via "-W".
+            command = ["ping", "-c", "1", "-W", str(int(timeout)), host]
+
         result = subprocess.run(command, capture_output=True, text=True, check=False)
         return result.returncode == 0
+    except FileNotFoundError:
+        log_action("Network check failed: 'ping' command not found.", is_error=True)
+        return False
     except Exception as e:
         log_action(f"Network check failed: {e}", is_error=True)
         return False
