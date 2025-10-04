@@ -152,7 +152,21 @@ def execute_scenario(scenario_name):
             return False
 
         handler_kwargs = {k: v for k, v in step.items() if k not in {"action", "target"}}
-        success = handler(target=target, **handler_kwargs)
+        try:
+            success = handler(target=target, **handler_kwargs)
+        except TypeError as exc:
+            log_action(
+                f"Handler '{action_name}' rejected provided parameters {handler_kwargs}: {exc}",
+                is_error=True,
+            )
+            return False
+        except Exception as exc:
+            log_action(
+                f"Handler '{action_name}' raised an unexpected error: {exc}",
+                is_error=True,
+            )
+            return False
+
         if not success:
             log_action(f"Scenario '{scenario_name}' failed at step {i}.", is_error=True)
             return False
@@ -179,7 +193,21 @@ if __name__ == "__main__":
     handler = ACTION_HANDLERS.get(command)
 
     if handler:
-        success = handler(target=argument)
+        try:
+            success = handler(target=argument)
+        except TypeError as exc:
+            log_action(
+                f"Command '{command}' rejected provided argument '{argument}': {exc}",
+                is_error=True,
+            )
+            sys.exit(1)
+        except Exception as exc:
+            log_action(
+                f"Command '{command}' raised an unexpected error: {exc}",
+                is_error=True,
+            )
+            sys.exit(1)
+
         sys.exit(0) if success else sys.exit(1)
     elif command == "--run-scenario":
         success = execute_scenario(argument)
