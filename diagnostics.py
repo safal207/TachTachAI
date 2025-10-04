@@ -30,13 +30,9 @@ def check_network(host="8.8.8.8", port=53, timeout=3):
     """
     try:
         # Using subprocess to run ping for broader compatibility.
-        # -n 1 for Windows, -c 1 for Unix-like systems
-        # -w 2000 for Windows (2000ms), -W 2 for Unix (2 seconds)
-        import platform
-        if platform.system().lower() == "windows":
-            command = ["ping", "-n", "1", "-w", "2000", host]
-        else:
-            command = ["ping", "-c", "1", "-W", "2", host]
+        # -c 1 means send 1 packet.
+        # -W 2 means wait 2 seconds for a response.
+        command = ["ping", "-c", "1", "-W", "2", host]
         result = subprocess.run(command, capture_output=True, text=True, check=False)
         return result.returncode == 0
     except Exception as e:

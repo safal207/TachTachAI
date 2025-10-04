@@ -2,7 +2,7 @@
     "command": "run_tests",
     "params": {
         "scenarios": [
-            "all"
+            "hybrid_notepad_test"
         ]
     }
 }

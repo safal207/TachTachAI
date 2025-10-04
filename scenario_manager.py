@@ -81,17 +81,33 @@ def record_scenario_interactive():
             return
 
     print("\n--- Start adding steps to your test case ---")
-    print("Actions: find-image, find-text, type, wait, assert-image, assert-text, wait-for-image, wait-for-text, assert-visuals")
-    print("Usage: action \"target\" OR wait-for-* \"target\" <seconds>")
+    print("\nAvailable Action Categories:")
+    print("  - General: type, wait")
+    print("  - Image/OCR: find-image, find-text, assert-image, assert-text, wait-for-image, wait-for-text, assert-visuals")
+    print("  - UIA (Windows): start-app, connect-app, find-uia-name, find-uia-id, type-uia, click-uia, assert-uia-text")
+    print("\nUsage: action \"target\" OR wait-for-* \"target\" <seconds>")
     print("Type 'done' when you are finished.")
 
     steps = []
+    valid_actions = [
+        "type", "wait", "find-image", "find-text", "assert-image", "assert-text",
+        "wait-for-image", "wait-for-text", "assert-visuals",
+        "start-app", "connect-app", "find-uia-name", "find-uia-id",
+        "type-uia", "click-uia", "assert-uia-text"
+    ]
+
     while True:
         command_input = input(f"Step {len(steps) + 1}: ").strip()
         if command_input.lower() == 'done': break
 
         parts = command_input.split()
+        if not parts:
+            continue
         action = parts[0]
+
+        if action not in valid_actions:
+            print(f"Invalid action '{action}'. Please check the list of available actions.")
+            continue
 
         step = None
         try:

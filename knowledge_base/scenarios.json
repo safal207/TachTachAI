@@ -1,12 +1,24 @@
 {
-    "perf_test": [
+    "hybrid_notepad_test": [
         {
-            "action": "wait",
-            "target": "0.1"
+            "action": "start-app",
+            "target": "notepad.exe"
         },
         {
             "action": "wait",
-            "target": "0.2"
+            "target": "2"
+        },
+        {
+            "action": "find-uia-id",
+            "target": "15"
+        },
+        {
+            "action": "type-uia",
+            "target": "Hello from the UIA backend!"
+        },
+        {
+            "action": "assert-uia-text",
+            "target": "Hello from the UIA backend!"
         }
     ]
 }
