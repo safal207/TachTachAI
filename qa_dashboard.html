@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>QA Dashboard & Command Center</title>
+    <title>AI-Assisted QA Command Center</title>
     <style>
         :root {
             --bg-color: #f4f7f9;
@@ -12,11 +12,9 @@
             --border-color: #e0e0e0;
             --shadow-color: rgba(0, 0, 0, 0.05);
             --primary-color: #007bff;
-            --passed-color: #28a745;
-            --failed-color: #dc3545;
-            --regression-color: #fd7e14;
-            --agent-active-color: #28a745;
-            --agent-paused-color: #6c757d;
+            --secondary-color: #6c757d;
+            --success-color: #28a745;
+            --error-color: #dc3545;
         }
         body {
             font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
@@ -26,10 +24,10 @@
             padding: 2em;
         }
         .container {
-            max-width: 1400px;
+            max-width: 900px;
             margin: 0 auto;
             display: grid;
-            grid-template-columns: 1fr 1fr;
+            grid-template-columns: 1fr;
             gap: 2em;
         }
         .card {
@@ -44,240 +42,208 @@
             border-bottom: 1px solid var(--border-color);
             padding-bottom: 0.5em;
             color: var(--primary-color);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
         }
-        #dashboard-section, #agent-status-card {
-            grid-column: 1 / -1;
+        .step-number {
+            background-color: var(--primary-color);
+            color: white;
+            border-radius: 50%;
+            width: 30px;
+            height: 30px;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 0.9em;
+            margin-right: 0.5em;
         }
-        #dashboard-section { display: none; }
-        #summary-grid {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
-            gap: 1em;
-            margin-bottom: 1.5em;
-        }
-        .summary-item {
-            background-color: var(--bg-color);
-            padding: 1em;
-            border-radius: 5px;
-            text-align: center;
-        }
-        .summary-item .value { font-size: 2em; font-weight: bold; }
-        .summary-item .label { font-size: 0.9em; color: #666; }
-        table { width: 100%; border-collapse: collapse; margin-top: 1em; }
-        th, td { border: 1px solid var(--border-color); padding: 0.75em; text-align: left; vertical-align: top; }
-        th { background-color: var(--bg-color); }
-        .status-PASSED { color: var(--passed-color); font-weight: bold; }
-        .status-FAILED { color: var(--failed-color); font-weight: bold; }
-        .perf-regression-tag { background-color: var(--regression-color); color: white; font-size: 0.8em; font-weight: bold; padding: 0.2em 0.5em; border-radius: 4px; margin-left: 10px; }
-        .perf-details { font-size: 0.9em; }
-        .perf-step { margin-top: 5px; padding-top: 5px; border-top: 1px solid #eee; }
-        .perf-step:first-child { border-top: none; padding-top: 0; }
-        .perf-step.regression { color: var(--regression-color); }
-        a { color: var(--primary-color); text-decoration: none; }
-        a:hover { text-decoration: underline; }
-
-        /* Form styling */
         .form-group { margin-bottom: 1em; }
         label { display: block; margin-bottom: 0.5em; font-weight: bold; }
-        input[type="text"], input[type="file"], select, textarea { width: 100%; padding: 0.75em; border: 1px solid var(--border-color); border-radius: 4px; box-sizing: border-box; }
-        textarea { min-height: 120px; font-family: monospace; }
-        button { background-color: var(--primary-color); color: white; padding: 0.8em 1.5em; border: none; border-radius: 4px; cursor: pointer; font-size: 1em; transition: background-color 0.2s; }
-        button:hover { background-color: #0056b3; }
-
-        /* Agent Status Card */
-        #agent-status-card-content { display: flex; justify-content: space-between; align-items: center; }
-        #agent-mode-switch { display: flex; align-items: center; }
-        .switch { position: relative; display: inline-block; width: 100px; height: 34px; }
-        .switch input { opacity: 0; width: 0; height: 0; }
-        .slider { position: absolute; cursor: pointer; top: 0; left: 0; right: 0; bottom: 0; background-color: #ccc; transition: .4s; border-radius: 34px; }
-        .slider:before { position: absolute; content: ""; height: 26px; width: 26px; left: 4px; bottom: 4px; background-color: white; transition: .4s; border-radius: 50%; }
-        input:checked + .slider { background-color: var(--agent-active-color); }
-        input:checked + .slider:before { transform: translateX(66px); }
-        .mode-label { margin: 0 10px; font-weight: bold; }
-        #command-center fieldset { border: none; padding: 0; margin: 0; }
-        #command-center fieldset:disabled { opacity: 0.5; }
+        input[type="file"] {
+            width: 100%;
+            padding: 0.75em;
+            border: 1px solid var(--border-color);
+            border-radius: 4px;
+            box-sizing: border-box;
+        }
+        textarea {
+            width: 100%;
+            min-height: 200px;
+            font-family: monospace;
+            font-size: 0.9em;
+            padding: 0.75em;
+            border: 1px solid var(--border-color);
+            border-radius: 4px;
+            box-sizing: border-box;
+            background-color: #f8f9fa;
+        }
+        button {
+            background-color: var(--primary-color);
+            color: white;
+            padding: 0.8em 1.5em;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 1em;
+            transition: background-color 0.2s;
+        }
+        button:disabled {
+            background-color: var(--secondary-color);
+            cursor: not-allowed;
+        }
+        button:hover:not(:disabled) {
+            background-color: #0056b3;
+        }
+        .hidden {
+            display: none;
+        }
+        .validation-status {
+            margin-top: 10px;
+            font-weight: bold;
+        }
+        .valid { color: var(--success-color); }
+        .invalid { color: var(--error-color); }
     </style>
 </head>
 <body>
     <div class="container">
-        <div class="card" id="agent-status-card">
-            <h2>🤖 AI QA Agent Control</h2>
-            <div id="agent-status-card-content">
-                <div>
-                    <p><strong>Status:</strong> <span id="agent-status-text">Paused</span></p>
-                    <p><strong>Current Focus:</strong> <span id="agent-focus">Idle</span></p>
-                </div>
-                <div id="agent-mode-switch">
-                    <span class="mode-label" id="manual-label">Manual</span>
-                    <label class="switch">
-                        <input type="checkbox" id="mode-toggle">
-                        <span class="slider"></span>
-                    </label>
-                    <span class="mode-label" id="auto-label">Autonomous</span>
-                </div>
-            </div>
-        </div>
+        <h1>AI-Assisted QA Workflow</h1>
 
-        <div class="card" id="upload-card">
-            <h2>1. Upload Report</h2>
+        <div class="card" id="step1-card">
+            <h2><span class="step-number">1</span> Upload Analysis Package</h2>
             <div class="form-group">
-                <label for="report-file">Select <code>execution_report.json</code></label>
-                <input type="file" id="report-file" accept=".json">
+                <label for="analysis-file">Select <code>ai_analysis_package.json</code></label>
+                <input type="file" id="analysis-file" accept=".json">
             </div>
         </div>
 
-        <div class="card" id="command-center">
-            <fieldset id="command-fieldset">
-                <h2>2. Generate Instructions</h2>
-                <form id="command-form">
-                    <div class="form-group">
-                        <label for="command-select">Select Command</label>
-                        <select id="command-select">
-                            <option value="run_tests">run_tests</option>
-                            <option value="run_tests_with_data">run_tests_with_data</option>
-                            <option value="create_scenario">create_scenario</option>
-                            <option value="update_baseline">update_baseline</option>
-                            <option value="create_performance_baseline">create_performance_baseline</option>
-                            <option value="get_status">get_status</option>
-                        </select>
-                    </div>
-                    <div id="params-container"></div>
-                    <button type="button" id="generate-btn">Download instructions.json</button>
-                </form>
-            </fieldset>
+        <div class="card hidden" id="step2-card">
+            <h2><span class="step-number">2</span> Generate Prompt for Claude</h2>
+            <div class="form-group">
+                <label for="prompt-output">Copy this entire prompt and paste it into Claude.ai:</label>
+                <textarea id="prompt-output" readonly></textarea>
+            </div>
+            <button id="copy-prompt-btn">Copy Prompt</button>
         </div>
 
-        <div class="card" id="dashboard-section">
-            <h2>Test Run Dashboard</h2>
-            <div id="summary-grid"></div>
-            <h3>Detailed Results</h3>
-            <table id="results-table">
-                <thead>
-                    <tr>
-                        <th>Test Case</th>
-                        <th>Status</th>
-                        <th>Details</th>
-                        <th>Performance</th>
-                    </tr>
-                </thead>
-                <tbody></tbody>
-            </table>
+        <div class="card hidden" id="step3-card">
+            <h2><span class="step-number">3</span> Generate Recommendations</h2>
+            <div class="form-group">
+                <label for="claude-response">Paste the full JSON response from Claude here:</label>
+                <textarea id="claude-response" placeholder="Paste Claude's JSON response here..."></textarea>
+                <div id="validation-status" class="validation-status"></div>
+            </div>
+            <button id="download-recs-btn" disabled>Validate & Download recommendations.json</button>
         </div>
     </div>
 
     <script>
-        document.addEventListener('DOMContentLoaded', () => {
-            const reportFileInput = document.getElementById('report-file');
-            const dashboardSection = document.getElementById('dashboard-section');
-            const summaryGrid = document.getElementById('summary-grid');
-            const resultsTableBody = document.querySelector('#results-table tbody');
-            const commandSelect = document.getElementById('command-select');
-            const paramsContainer = document.getElementById('params-container');
-            const generateBtn = document.getElementById('generate-btn');
-            const modeToggle = document.getElementById('mode-toggle');
-            const commandFieldset = document.getElementById('command-fieldset');
-            const agentStatusText = document.getElementById('agent-status-text');
+    document.addEventListener('DOMContentLoaded', () => {
+        const analysisFileInput = document.getElementById('analysis-file');
+        const step2Card = document.getElementById('step2-card');
+        const step3Card = document.getElementById('step3-card');
+        const promptOutput = document.getElementById('prompt-output');
+        const copyPromptBtn = document.getElementById('copy-prompt-btn');
+        const claudeResponseInput = document.getElementById('claude-response');
+        const validationStatus = document.getElementById('validation-status');
+        const downloadRecsBtn = document.getElementById('download-recs-btn');
 
-            const paramTemplates = {
-                run_tests: `<div class="form-group"><label for="param-scenarios">Scenarios (comma-separated, or 'all')</label><input type="text" id="param-scenarios" value="all"></div>`,
-                run_tests_with_data: `<div class="form-group"><label for="param-scenario_name">Base Scenario Name</label><input type="text" id="param-scenario_name" placeholder="e.g., login_test"></div><div class="form-group"><label for="param-data_file">Data File Path</label><input type="text" id="param-data_file" placeholder="e.g., login_data.csv"></div>`,
-                create_scenario: `<div class="form-group"><label for="param-name">Scenario Name</label><input type="text" id="param-name" placeholder="e.g., successful_login"></div><div class="form-group"><label for="param-steps">Steps (JSON format)</label><textarea id="param-steps" placeholder='[\\n  {\\n    "action": "find-text",\\n    "target": "Login"\\n  }\\n]'></textarea></div>`,
-                update_baseline: `<div class="form-group"><label for="param-visual_test_name">Visual Test Name</label><input type="text" id="param-visual_test_name" placeholder="e.g., main_page"></div>`,
-                create_performance_baseline: `<div class="form-group"><label for="param-test_name">Test Name to Baseline</label><input type="text" id="param-test_name" placeholder="e.g., login_test"></div>`,
-                get_status: ``
-            };
+        const promptTemplate = `You are an expert QA Lead analyzing a test run. Your goal is to identify root causes, suggest new tests, and prioritize actions.
 
-            reportFileInput.addEventListener('change', (event) => {
-                const file = event.target.files[0];
-                if (!file) return;
-                const reader = new FileReader();
-                reader.onload = (e) => {
-                    try {
-                        const data = JSON.parse(e.target.result);
-                        renderDashboard(data);
-                    } catch (error) { alert('Error parsing JSON file: ' + error.message); }
-                };
-                reader.readAsText(file);
-            });
+Respond ONLY with a JSON object. Do not include any other text, explanations, or markdown formatting.
 
-            function renderDashboard(data) {
-                const summary = data.summary;
-                const perfRegressions = data.tests.filter(t => t.performance && t.performance.has_regression).length;
-                summaryGrid.innerHTML = `
-                    <div class="summary-item"><div class="value">${summary.total}</div><div class="label">Total</div></div>
-                    <div class="summary-item"><div class="value status-PASSED">${summary.passed}</div><div class="label">Passed</div></div>
-                    <div class="summary-item"><div class="value status-FAILED">${summary.failed}</div><div class="label">Failed</div></div>
-                    <div class="summary-item"><div class="value" style="color:var(--regression-color)">${perfRegressions}</div><div class="label">Perf. Regressions</div></div>
-                `;
-                resultsTableBody.innerHTML = '';
-                data.tests.forEach(test => {
-                    const row = document.createElement('tr');
-                    let detailsHTML = test.status === 'PASSED' ? `Executed ${test.steps_executed} steps successfully.` : `Failed at step ${test.failed_step}: <strong>${test.step_description}</strong><br><em>Error: ${test.error}</em><br>${test.screenshot ? `<a href="${test.screenshot}" target="_blank">View Screenshot</a>` : ''}`;
-                    let perfHTML = 'N/A';
-                    if (test.performance) {
-                        const perf = test.performance;
-                        const regressionTag = perf.has_regression ? '<span class="perf-regression-tag">REGRESSION</span>' : '';
-                        perfHTML = `<strong>Total: ${perf.total_duration_ms.toFixed(2)}ms</strong> ${regressionTag}<hr class="perf-details">`;
-                        perf.steps.forEach(step => {
-                            const isReg = step.regression;
-                            const slowdown = step.slowdown_percent !== null ? `(${step.slowdown_percent > 0 ? '+' : ''}${step.slowdown_percent.toFixed(1)}%)` : '';
-                            perfHTML += `<div class="perf-step ${isReg ? 'regression' : ''}">Step ${step.step}: ${step.duration_ms}ms / Base: ${step.baseline_ms || 'N/A'}ms ${slowdown}</div>`;
-                        });
-                    }
-                    row.innerHTML = `<td>${test.name}</td><td class="status-${test.status}">${test.status}</td><td>${detailsHTML}</td><td class="perf-details">${perfHTML}</td>`;
-                    resultsTableBody.appendChild(row);
-                });
-                dashboardSection.style.display = 'block';
-            }
+**Analysis Data:**
+\`\`\`json
+{analysis_package_json}
+\`\`\`
 
-            function setAgentMode(isAutonomous) {
-                commandFieldset.disabled = isAutonomous;
-                agentStatusText.textContent = isAutonomous ? 'Active' : 'Paused';
-                agentStatusText.style.color = isAutonomous ? 'var(--agent-active-color)' : 'var(--agent-paused-color)';
-                localStorage.setItem('agentMode', isAutonomous ? 'autonomous' : 'manual');
-            }
+**Your Task:**
+Analyze the provided data and generate a set of recommendations.
 
-            modeToggle.addEventListener('change', (event) => {
-                setAgentMode(event.target.checked);
-            });
+**Required JSON Output Format:**
+\`\`\`json
+{
+  "priority_actions": [
+    {
+      "priority": "high" | "medium" | "low",
+      "action": "A descriptive title for the action, e.g., 'Investigate login failures'",
+      "reasoning": "Your justification for this action.",
+      "commands": [
+        {
+          "command": "run_tests" | "create_scenario" | "update_baseline" | "create_performance_baseline",
+          "params": {
+            "key": "value"
+          }
+        }
+      ]
+    }
+  ],
+  "new_tests_needed": [
+      "A description of a new test case that should be created."
+  ],
+  "insights": "Your overall summary and key insights from this test run."
+}
+\`\`\`
+`;
+        analysisFileInput.addEventListener('change', (event) => {
+            const file = event.target.files[0];
+            if (!file) return;
 
-            function updateCommandParams() {
-                paramsContainer.innerHTML = paramTemplates[commandSelect.value] || '';
-            }
-            commandSelect.addEventListener('change', updateCommandParams);
-
-            generateBtn.addEventListener('click', () => {
-                const command = commandSelect.value;
-                const params = {};
-                switch (command) {
-                    case 'run_tests': params.scenarios = document.getElementById('param-scenarios').value.split(',').map(s => s.trim()); break;
-                    case 'run_tests_with_data': params.scenario_name = document.getElementById('param-scenario_name').value; params.data_file = document.getElementById('param-data_file').value; break;
-                    case 'create_scenario': params.name = document.getElementById('param-name').value; try { params.steps = JSON.parse(document.getElementById('param-steps').value); } catch (e) { alert("Invalid JSON in steps: " + e.message); return; } break;
-                    case 'update_baseline': params.visual_test_name = document.getElementById('param-visual_test_name').value; break;
-                    case 'create_performance_baseline': params.test_name = document.getElementById('param-test_name').value; break;
+            const reader = new FileReader();
+            reader.onload = (e) => {
+                try {
+                    const data = JSON.parse(e.target.result);
+                    const prompt = promptTemplate.replace('{analysis_package_json}', JSON.stringify(data, null, 2));
+                    promptOutput.value = prompt;
+                    step2Card.classList.remove('hidden');
+                    step3Card.classList.remove('hidden');
+                } catch (error) {
+                    alert('Error parsing analysis package: ' + error.message);
                 }
-                downloadJSON({ command, params }, 'claude_instructions.json');
-            });
-
-            function downloadJSON(data, filename) {
-                const blob = new Blob([JSON.stringify(data, null, 4)], { type: 'application/json' });
-                const url = URL.createObjectURL(blob);
-                const a = document.createElement('a');
-                a.href = url; a.download = filename;
-                document.body.appendChild(a);
-                a.click();
-                document.body.removeChild(a);
-                URL.revokeObjectURL(url);
-            }
-
-            // Initial setup
-            const savedMode = localStorage.getItem('agentMode');
-            if (savedMode === 'autonomous') {
-                modeToggle.checked = true;
-            }
-            setAgentMode(modeToggle.checked);
-            updateCommandParams();
+            };
+            reader.readAsText(file);
         });
+
+        copyPromptBtn.addEventListener('click', () => {
+            promptOutput.select();
+            document.execCommand('copy');
+            copyPromptBtn.textContent = 'Copied!';
+            setTimeout(() => { copyPromptBtn.textContent = 'Copy Prompt'; }, 2000);
+        });
+
+        claudeResponseInput.addEventListener('input', () => {
+            const text = claudeResponseInput.value.trim();
+            if (!text) {
+                validationStatus.textContent = '';
+                downloadRecsBtn.disabled = true;
+                return;
+            }
+            try {
+                JSON.parse(text);
+                validationStatus.textContent = 'JSON is valid!';
+                validationStatus.className = 'validation-status valid';
+                downloadRecsBtn.disabled = false;
+            } catch (e) {
+                validationStatus.textContent = 'Invalid JSON: ' + e.message.split('\n')[0];
+                validationStatus.className = 'validation-status invalid';
+                downloadRecsBtn.disabled = true;
+            }
+        });
+
+        downloadRecsBtn.addEventListener('click', () => {
+            const jsonStr = claudeResponseInput.value;
+            const blob = new Blob([jsonStr], { type: 'application/json' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = 'recommendations.json';
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            URL.revokeObjectURL(url);
+        });
+    });
     </script>
 </body>
 </html>

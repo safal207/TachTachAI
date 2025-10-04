@@ -1,0 +1,45 @@
+{
+    "report_timestamp": "2025-10-04T01:48:00Z",
+    "execution_report": {
+        "timestamp": "2025-10-04T01:48:00Z",
+        "framework_version": "5.0",
+        "summary": {
+            "total": 1,
+            "passed": 0,
+            "failed": 1,
+            "success_rate": 0.0
+        },
+        "tests": [
+            {
+                "name": "critical_checkout_test",
+                "status": "FAILED",
+                "failed_step": 4,
+                "step_description": "assert-text 'Order Confirmed'",
+                "error": "FAILURE: Did not find text 'Order Confirmed' after self-healing.",
+                "screenshot": "reports/screenshots/critical_checkout_test_failure.png",
+                "diagnostics": {
+                    "network_available": true,
+                    "cpu_usage": "75%",
+                    "ram_usage": "80%"
+                },
+                "performance": {
+                    "total_duration_ms": 5500.0,
+                    "has_regression": true
+                }
+            }
+        ]
+    },
+    "trends": {
+        "summary": "No historical data to analyze."
+    },
+    "coverage_gaps": [
+        "Note: Coverage analysis is not yet implemented."
+    ],
+    "agent_goals": {
+        "target_success_rate": 95.0,
+        "max_regression_tolerance": 2,
+        "coverage_increase_target": 10,
+        "current_success_rate": 0.0,
+        "action_needed": true
+    }
+}

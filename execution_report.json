@@ -1,22 +1,28 @@
 {
-    "timestamp": "2025-10-04T01:09:00Z",
-    "framework_version": "4.0",
+    "timestamp": "2025-10-04T01:48:00Z",
+    "framework_version": "5.0",
     "summary": {
-        "total": 5,
-        "passed": 4,
+        "total": 1,
+        "passed": 0,
         "failed": 1,
-        "success_rate": 80.0
+        "success_rate": 0.0
     },
     "tests": [
         {
-            "name": "login_test",
+            "name": "critical_checkout_test",
             "status": "FAILED",
-            "failed_step": 2,
-            "step_description": "type 'wrong_password'",
-            "error": "Assertion failed: text 'Welcome' not found.",
-            "screenshot": "reports/screenshots/login_test_failure.png",
+            "failed_step": 4,
+            "step_description": "assert-text 'Order Confirmed'",
+            "error": "FAILURE: Did not find text 'Order Confirmed' after self-healing.",
+            "screenshot": "reports/screenshots/critical_checkout_test_failure.png",
             "diagnostics": {
-                "network_available": true
+                "network_available": true,
+                "cpu_usage": "75%",
+                "ram_usage": "80%"
+            },
+            "performance": {
+                "total_duration_ms": 5500.0,
+                "has_regression": true
             }
         }
     ]

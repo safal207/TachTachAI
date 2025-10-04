@@ -9,149 +9,131 @@ from logger import log_action
 from test_runner import run_scenario_based_suite, run_data_driven_suite
 from scenario_manager import create_or_update_scenario, delete_visual_baseline
 from performance_tracker import delete_baseline as delete_performance_baseline
+from analysis_packager import create_analysis_package
 
 # --- Constants ---
-INSTRUCTIONS_FILE = "claude_instructions.json"
+RECOMMENDATIONS_FILE = "recommendations.json"
+INSTRUCTIONS_FILE = "claude_instructions.json" # For manual override
 REPORT_FILE = "execution_report.json"
-PYTHON_CMD = "python" # or python3
-FRAMEWORK_VERSION = "4.0" # Updated version
+HISTORY_DIR = os.path.join("reports", "history")
+PYTHON_CMD = "python"
+FRAMEWORK_VERSION = "5.0" # AI-Assisted Mode
 
-# --- Core Functions ---
+# --- File I/O ---
 
-def read_instructions():
-    """Checks for and reads the instructions file."""
-    if os.path.exists(INSTRUCTIONS_FILE):
-        log_action("Found instructions file.")
+def read_json_file(filepath):
+    """Generic function to read a JSON file."""
+    if not os.path.exists(filepath):
+        return None
+    try:
+        with open(filepath, 'r') as f:
+            content = f.read()
+            return json.loads(content) if content else None
+    except Exception as e:
+        log_action(f"Error reading {filepath}: {e}", is_error=True)
+        return None
+
+def archive_file(filepath, subfolder=''):
+    """Archives a file by moving it to the history directory with a timestamp."""
+    if os.path.exists(filepath):
         try:
-            with open(INSTRUCTIONS_FILE, 'r') as f:
-                content = f.read()
-                if not content: return None
-                return json.loads(content)
+            target_dir = os.path.join(HISTORY_DIR, subfolder)
+            os.makedirs(target_dir, exist_ok=True)
+            timestamp = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
+            archive_path = os.path.join(target_dir, f"{os.path.basename(filepath)}_{timestamp}.json")
+            os.rename(filepath, archive_path)
+            log_action(f"Archived {filepath} to {archive_path}")
         except Exception as e:
-            log_action(f"Error reading {INSTRUCTIONS_FILE}: {e}", is_error=True)
-            return None
-    return None
+            log_action(f"Could not archive {filepath}: {e}", is_error=True)
 
 def write_report(data):
-    """Writes the execution result to the report file."""
-    log_action("Writing execution report.")
+    """Archives the old report and writes the new one."""
+    archive_file(REPORT_FILE, subfolder='reports')
+    log_action("Writing new execution report.")
     try:
         with open(REPORT_FILE, 'w') as f:
             json.dump(data, f, indent=4)
-        log_action(f"Report successfully written to {REPORT_FILE}.")
     except Exception as e:
         log_action(f"Failed to write report: {e}", is_error=True)
 
-def cleanup_instructions():
-    """Deletes the instructions file after processing."""
-    if os.path.exists(INSTRUCTIONS_FILE):
-        os.remove(INSTRUCTIONS_FILE)
-        log_action("Instructions file cleaned up.")
+# --- Command Handlers ---
 
 def _format_test_report(test_results):
     """Helper function to format the final JSON report from test results."""
-    if not test_results:
-        return {"status": "error", "message": "No test results to report."}
-
+    # ... (implementation from previous phase)
     passed = sum(1 for r in test_results if r['status'] == 'PASSED')
     failed = len(test_results) - passed
     success_rate = (passed / len(test_results) * 100) if test_results else 100
-
     return {
         "timestamp": datetime.datetime.now().isoformat(),
         "framework_version": FRAMEWORK_VERSION,
-        "summary": {
-            "total": len(test_results),
-            "passed": passed,
-            "failed": failed,
-            "success_rate": round(success_rate, 2)
-        },
+        "summary": {"total": len(test_results), "passed": passed, "failed": failed, "success_rate": round(success_rate, 2)},
         "tests": test_results
     }
 
-# --- Command Handlers ---
+command_handlers = {
+    "run_tests": lambda p: _format_test_report(run_scenario_based_suite(p.get("scenarios", ["all"]))),
+    "run_tests_with_data": lambda p: _format_test_report(run_data_driven_suite(p.get("scenario_name"), p.get("data_file"))),
+    "create_scenario": lambda p: {"status": "completed" if create_or_update_scenario(p.get('name'), p.get('steps')) else "error"},
+    "update_baseline": lambda p: {"status": "completed" if delete_visual_baseline(p.get('visual_test_name')) else "error"},
+    "create_performance_baseline": lambda p: {"status": "completed" if delete_performance_baseline(p.get('test_name')) else "error"},
+    "get_status": lambda p: {"data": subprocess.run([PYTHON_CMD, "smart_cursor.py", "--status"], capture_output=True, text=True).stdout}
+}
 
-def handle_run_tests(params):
-    """Handler for the 'run_tests' command."""
-    log_action(f"Executing 'run_tests' with params: {params}")
-    test_names = params.get("scenarios", ["all"])
-    test_results = run_scenario_based_suite(test_names)
-    return _format_test_report(test_results)
-
-def handle_run_data_driven_tests(params):
-    """Handler for the 'run_tests_with_data' command."""
-    log_action(f"Executing 'run_tests_with_data' with params: {params}")
-    scenario_name = params.get("scenario_name")
-    data_file = params.get("data_file")
-
-    if not scenario_name or not data_file:
-        return {"status": "error", "message": "Missing 'scenario_name' or 'data_file'."}
-
-    test_results = run_data_driven_suite(scenario_name, data_file)
-    return _format_test_report(test_results)
-
-def handle_create_scenario(params):
-    """Handler for the 'create_scenario' command."""
-    name = params.get('name')
-    steps = params.get('steps')
-    if not name or not steps:
-        return {"status": "error", "message": "Missing 'name' or 'steps'."}
-    success = create_or_update_scenario(name, steps)
-    return {"status": "completed" if success else "error", "message": f"Scenario '{name}' processed."}
-
-def handle_update_baseline(params):
-    """Handler for the 'update_baseline' command."""
-    baseline_name = params.get('visual_test_name')
-    if not baseline_name:
-        return {"status": "error", "message": "Missing 'visual_test_name'."}
-    success = delete_visual_baseline(baseline_name)
-    return {"status": "completed" if success else "error", "message": f"Baseline '{baseline_name}' processed."}
-
-def handle_get_status(params):
-    """Handler for the 'get_status' command."""
-    try:
-        result = subprocess.run([PYTHON_CMD, "smart_cursor.py", "--status"], capture_output=True, text=True, check=True)
-        return {"status": "completed", "data": result.stdout}
-    except Exception as e:
-        return {"status": "error", "message": "Failed to get status.", "details": str(e)}
-
-def handle_create_performance_baseline(params):
-    """Handler for the 'create_performance_baseline' command."""
-    test_name = params.get('test_name')
-    if not test_name:
-        return {"status": "error", "message": "Missing 'test_name' for create_performance_baseline."}
-    success = delete_performance_baseline(test_name)
-    return {"status": "completed" if success else "error", "message": f"Performance baseline for '{test_name}' will be recreated on next run."}
-
+def execute_command(command_data):
+    """Executes a single command dictionary."""
+    command_name = command_data.get("command")
+    params = command_data.get("params", {})
+    handler = command_handlers.get(command_name)
+    if handler:
+        log_action(f"Executing command: {command_name} with params: {params}")
+        return handler(params)
+    else:
+        log_action(f"Unknown command '{command_name}'", is_error=True)
+        return {"status": "error", "message": f"Unknown command: {command_name}"}
 
 # --- Main Loop ---
+
 def main():
-    """Main loop to check for instructions and execute them."""
-    log_action(f"Command Interface v{FRAMEWORK_VERSION} started. Watching for instructions...")
-    command_handlers = {
-        "run_tests": handle_run_tests,
-        "run_tests_with_data": handle_run_data_driven_tests,
-        "create_scenario": handle_create_scenario,
-        "update_baseline": handle_update_baseline,
-        "create_performance_baseline": handle_create_performance_baseline,
-        "get_status": handle_get_status,
-    }
+    """Main loop to check for recommendations or manual instructions."""
+    log_action(f"AI-Assisted Command Interface v{FRAMEWORK_VERSION} started.")
 
     while True:
-        instructions = read_instructions()
-        if instructions:
-            command = instructions.get("command")
-            params = instructions.get("params", {})
+        recommendations = read_json_file(RECOMMENDATIONS_FILE)
 
-            handler = command_handlers.get(command)
-            if handler:
-                execution_report = handler(params)
-                write_report(execution_report)
+        if recommendations:
+            log_action("Found AI-generated recommendations.")
+            print("\n--- 🤖 AI Recommendations Loaded ---")
+            for i, action in enumerate(recommendations.get("priority_actions", [])):
+                print(f"  {i+1}. Action: {action.get('action')}")
+                print(f"     Reasoning: {action.get('reasoning')}")
+
+            confirm = input("Execute these recommendations? (yes/no): ").lower().strip()
+
+            if confirm == 'yes':
+                log_action("User approved execution of recommendations.")
+                for action in recommendations.get("priority_actions", []):
+                    for command in action.get("commands", []):
+                        # We don't generate a full report for each sub-step, just log it.
+                        execute_command(command)
+                # After executing all, we generate a new analysis package
+                create_analysis_package()
             else:
-                log_action(f"Unknown command received: {command}", is_error=True)
-                write_report({"status": "error", "command": command, "message": "Unknown command."})
+                log_action("User rejected execution of recommendations.")
 
-            cleanup_instructions()
+            archive_file(RECOMMENDATIONS_FILE, subfolder='recommendations')
+
+        else:
+            # Fallback to manual instruction mode if no recommendations
+            instruction = read_json_file(INSTRUCTIONS_FILE)
+            if instruction:
+                log_action("Found manual instruction file.")
+                report = execute_command(instruction)
+                if report:
+                    write_report(report)
+                os.remove(INSTRUCTIONS_FILE)
+                # After manual action, also generate a new analysis package
+                create_analysis_package()
 
         time.sleep(10)
 
