@@ -1,0 +1,25 @@
+{
+    "timestamp": "2025-10-03T23:51:00",
+    "framework_version": "2.0",
+    "summary": {
+        "total": 2,
+        "passed": 1,
+        "failed": 1,
+        "success_rate": 50.0
+    },
+    "tests": [
+        {
+            "name": "successful_login_test",
+            "status": "PASSED",
+            "steps_executed": 5
+        },
+        {
+            "name": "failing_checkout_test",
+            "status": "FAILED",
+            "failed_step": 3,
+            "step_description": "assert-text 'Thank you for your order!'",
+            "error": "FAILURE: Did not find text 'Thank you for your order!' after self-healing.",
+            "screenshot": "reports/screenshots/failing_checkout_test_step_3_failure_20251003_235000.png"
+        }
+    ]
+}

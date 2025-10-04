@@ -1,0 +1,23 @@
+{
+    "successful_test": [
+        {
+            "action": "wait-for-text",
+            "target": "Smart Cursor",
+            "timeout": "5"
+        },
+        {
+            "action": "assert-text",
+            "target": "Smart Cursor"
+        }
+    ],
+    "failing_test": [
+        {
+            "action": "wait",
+            "target": "1"
+        },
+        {
+            "action": "assert-text",
+            "target": "This text will definitely not be on the screen"
+        }
+    ]
+}

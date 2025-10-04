@@ -1,0 +1,306 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>QA Dashboard & Command Center</title>
+    <style>
+        :root {
+            --bg-color: #f4f7f9;
+            --main-color: #ffffff;
+            --text-color: #333;
+            --border-color: #e0e0e0;
+            --shadow-color: rgba(0, 0, 0, 0.05);
+            --primary-color: #007bff;
+            --passed-color: #28a745;
+            --failed-color: #dc3545;
+        }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+            background-color: var(--bg-color);
+            color: var(--text-color);
+            margin: 0;
+            padding: 2em;
+        }
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 2em;
+        }
+        .card {
+            background-color: var(--main-color);
+            border-radius: 8px;
+            border: 1px solid var(--border-color);
+            padding: 1.5em;
+            box-shadow: 0 4px 6px var(--shadow-color);
+        }
+        .card h2 {
+            margin-top: 0;
+            border-bottom: 1px solid var(--border-color);
+            padding-bottom: 0.5em;
+            color: var(--primary-color);
+        }
+        #dashboard-section {
+            grid-column: 1 / -1;
+            display: none;
+        }
+        #summary-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+            gap: 1em;
+            margin-bottom: 1.5em;
+        }
+        .summary-item {
+            background-color: var(--bg-color);
+            padding: 1em;
+            border-radius: 5px;
+            text-align: center;
+        }
+        .summary-item .value {
+            font-size: 2em;
+            font-weight: bold;
+        }
+        .summary-item .label {
+            font-size: 0.9em;
+            color: #666;
+        }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 1em;
+        }
+        th, td {
+            border: 1px solid var(--border-color);
+            padding: 0.75em;
+            text-align: left;
+        }
+        th {
+            background-color: var(--bg-color);
+        }
+        .status-PASSED { color: var(--passed-color); font-weight: bold; }
+        .status-FAILED { color: var(--failed-color); font-weight: bold; }
+        a { color: var(--primary-color); text-decoration: none; }
+        a:hover { text-decoration: underline; }
+
+        /* Form styling */
+        .form-group { margin-bottom: 1em; }
+        label { display: block; margin-bottom: 0.5em; font-weight: bold; }
+        input[type="text"], input[type="file"], select, textarea {
+            width: 100%;
+            padding: 0.75em;
+            border: 1px solid var(--border-color);
+            border-radius: 4px;
+            box-sizing: border-box;
+        }
+        textarea {
+            min-height: 120px;
+            font-family: monospace;
+        }
+        button {
+            background-color: var(--primary-color);
+            color: white;
+            padding: 0.8em 1.5em;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 1em;
+            transition: background-color 0.2s;
+        }
+        button:hover {
+            background-color: #0056b3;
+        }
+        .hidden {
+            display: none;
+        }
+    </style>
+</head>
+<body>
+
+    <div class="container">
+        <div class="card" id="upload-card">
+            <h2>1. Upload Report</h2>
+            <div class="form-group">
+                <label for="report-file">Select <code>execution_report.json</code></label>
+                <input type="file" id="report-file" accept=".json">
+            </div>
+        </div>
+
+        <div class="card" id="command-center">
+            <h2>3. Generate Instructions</h2>
+            <form id="command-form">
+                <div class="form-group">
+                    <label for="command-select">Select Command</label>
+                    <select id="command-select">
+                        <option value="run_tests">run_tests</option>
+                        <option value="create_scenario">create_scenario</option>
+                        <option value="update_baseline">update_baseline</option>
+                        <option value="get_status">get_status</option>
+                    </select>
+                </div>
+
+                <div id="params-container">
+                    <!-- Dynamic fields will be injected here -->
+                </div>
+
+                <button type="button" id="generate-btn">Download instructions.json</button>
+            </form>
+        </div>
+
+        <div class="card" id="dashboard-section">
+            <h2>2. Test Run Dashboard</h2>
+            <div id="summary-grid"></div>
+            <h3>Detailed Results</h3>
+            <table id="results-table">
+                <thead>
+                    <tr>
+                        <th>Test Case</th>
+                        <th>Status</th>
+                        <th>Details</th>
+                    </tr>
+                </thead>
+                <tbody></tbody>
+            </table>
+        </div>
+    </div>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            const reportFileInput = document.getElementById('report-file');
+            const dashboardSection = document.getElementById('dashboard-section');
+            const summaryGrid = document.getElementById('summary-grid');
+            const resultsTableBody = document.querySelector('#results-table tbody');
+
+            const commandSelect = document.getElementById('command-select');
+            const paramsContainer = document.getElementById('params-container');
+            const generateBtn = document.getElementById('generate-btn');
+
+            const paramTemplates = {
+                run_tests: `
+                    <div class="form-group">
+                        <label for="param-scenarios">Scenarios (comma-separated, or 'all')</label>
+                        <input type="text" id="param-scenarios" value="all">
+                    </div>`,
+                create_scenario: `
+                    <div class="form-group">
+                        <label for="param-name">Scenario Name</label>
+                        <input type="text" id="param-name" placeholder="e.g., successful_login">
+                    </div>
+                    <div class="form-group">
+                        <label for="param-steps">Steps (JSON format)</label>
+                        <textarea id="param-steps" placeholder='[\\n  {\\n    "action": "find-text",\\n    "target": "Login"\\n  }\\n]'></textarea>
+                    </div>`,
+                update_baseline: `
+                    <div class="form-group">
+                        <label for="param-visual_test_name">Visual Test Name</label>
+                        <input type="text" id="param-visual_test_name" placeholder="e.g., main_page">
+                    </div>`,
+                get_status: ``
+            };
+
+            // --- File Upload and Dashboard Rendering ---
+            reportFileInput.addEventListener('change', (event) => {
+                const file = event.target.files[0];
+                if (!file) return;
+
+                const reader = new FileReader();
+                reader.onload = (e) => {
+                    try {
+                        const data = JSON.parse(e.target.result);
+                        renderDashboard(data);
+                    } catch (error) {
+                        alert('Error parsing JSON file: ' + error.message);
+                    }
+                };
+                reader.readAsText(file);
+            });
+
+            function renderDashboard(data) {
+                // Render summary
+                const summary = data.summary;
+                summaryGrid.innerHTML = `
+                    <div class="summary-item"><div class="value">${summary.total}</div><div class="label">Total</div></div>
+                    <div class="summary-item"><div class="value status-PASSED">${summary.passed}</div><div class="label">Passed</div></div>
+                    <div class="summary-item"><div class="value status-FAILED">${summary.failed}</div><div class="label">Failed</div></div>
+                    <div class="summary-item"><div class="value">${summary.success_rate}%</div><div class="label">Success Rate</div></div>
+                `;
+
+                // Render table
+                resultsTableBody.innerHTML = '';
+                data.tests.forEach(test => {
+                    const row = document.createElement('tr');
+                    let details = '';
+                    if (test.status === 'PASSED') {
+                        details = `Executed ${test.steps_executed} steps successfully.`;
+                    } else {
+                        details = `Failed at step ${test.failed_step}: <strong>${test.step_description}</strong><br>
+                                   <em>Error: ${test.error}</em><br>`;
+                        if (test.screenshot) {
+                            details += `<a href="${test.screenshot}" target="_blank">View Screenshot</a>`;
+                        }
+                    }
+                    row.innerHTML = `
+                        <td>${test.name}</td>
+                        <td class="status-${test.status}">${test.status}</td>
+                        <td>${details}</td>
+                    `;
+                    resultsTableBody.appendChild(row);
+                });
+
+                dashboardSection.style.display = 'block';
+            }
+
+            // --- Command Generation ---
+            function updateCommandParams() {
+                paramsContainer.innerHTML = paramTemplates[commandSelect.value] || '';
+            }
+
+            commandSelect.addEventListener('change', updateCommandParams);
+
+            generateBtn.addEventListener('click', () => {
+                const command = commandSelect.value;
+                const params = {};
+
+                switch (command) {
+                    case 'run_tests':
+                        const scenarios = document.getElementById('param-scenarios').value;
+                        params.scenarios = scenarios.split(',').map(s => s.trim());
+                        break;
+                    case 'create_scenario':
+                        params.name = document.getElementById('param-name').value;
+                        try {
+                            params.steps = JSON.parse(document.getElementById('param-steps').value);
+                        } catch (e) {
+                            alert("Invalid JSON in steps: " + e.message);
+                            return;
+                        }
+                        break;
+                    case 'update_baseline':
+                        params.visual_test_name = document.getElementById('param-visual_test_name').value;
+                        break;
+                }
+
+                const instructions = { command, params };
+                downloadJSON(instructions, 'claude_instructions.json');
+            });
+
+            function downloadJSON(data, filename) {
+                const jsonStr = JSON.stringify(data, null, 4);
+                const blob = new Blob([jsonStr], { type: 'application/json' });
+                const url = URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = filename;
+                document.body.appendChild(a);
+                a.click();
+                document.body.removeChild(a);
+                URL.revokeObjectURL(url);
+            }
+
+            // Initial setup
+            updateCommandParams();
+        });
+    </script>
+</body>
+</html>

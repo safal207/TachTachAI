@@ -1,0 +1,12 @@
+Traceback (most recent call last):
+  File "/app/command_interface.py", line 9, in <module>
+    from test_runner import run_test_suite
+  File "/app/test_runner.py", line 5, in <module>
+    import pyautogui
+  File "/home/jules/.pyenv/versions/3.12.11/lib/python3.12/site-packages/pyautogui/__init__.py", line 246, in <module>
+    import mouseinfo
+  File "/home/jules/.pyenv/versions/3.12.11/lib/python3.12/site-packages/mouseinfo/__init__.py", line 223, in <module>
+    _display = Display(os.environ['DISPLAY'])
+                       ~~~~~~~~~~^^^^^^^^^^^
+  File "<frozen os>", line 714, in __getitem__
+KeyError: 'DISPLAY'

@@ -1,0 +1,6 @@
+{
+    "command": "run_tests",
+    "params": {
+        "scenarios": ["all"]
+    }
+}
