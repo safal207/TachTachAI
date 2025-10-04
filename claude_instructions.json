@@ -1,7 +1,8 @@
 {
-    "command": "run_tests_with_data",
+    "command": "run_tests",
     "params": {
-        "scenario_name": "login_test",
-        "data_file": "login_data.csv"
+        "scenarios": [
+            "perf_test"
+        ]
     }
 }

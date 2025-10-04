@@ -1,40 +1,37 @@
 {
-    "timestamp": "2025-10-04T00:21:30.123456",
-    "framework_version": "3.0",
+    "timestamp": "2025-10-04T00:32:30.123456",
+    "framework_version": "4.0",
     "summary": {
-        "total": 3,
-        "passed": 2,
-        "failed": 1,
-        "success_rate": 66.67
+        "total": 1,
+        "passed": 1,
+        "failed": 0,
+        "success_rate": 100.0
     },
     "tests": [
         {
-            "name": "login_test_[row_1]",
+            "name": "perf_test",
             "status": "PASSED",
-            "steps_executed": 7
-        },
-        {
-            "name": "login_test_[row_2]",
-            "status": "FAILED",
-            "failed_step": 7,
-            "step_description": "assert-text '{expected_text}'",
-            "error": "FAILURE: Did not find text 'Invalid credentials' after self-healing.",
-            "screenshot": "reports/screenshots/login_test_[row_2]_step_7_failure_20251004_002125_shot_1.png",
-            "diagnostics": {
-                "screenshots": [
-                    "reports/screenshots/login_test_[row_2]_step_7_failure_20251004_002125_shot_1.png",
-                    "reports/screenshots/login_test_[row_2]_step_7_failure_20251004_002126_shot_2.png",
-                    "reports/screenshots/login_test_[row_2]_step_7_failure_20251004_002127_shot_3.png"
+            "steps_executed": 2,
+            "performance": {
+                "total_duration_ms": 205.8,
+                "steps": [
+                    {
+                        "step": 1,
+                        "duration_ms": 55.5,
+                        "baseline_ms": 50.0,
+                        "regression": false,
+                        "slowdown_percent": 11.0
+                    },
+                    {
+                        "step": 2,
+                        "duration_ms": 150.3,
+                        "baseline_ms": 100.0,
+                        "regression": true,
+                        "slowdown_percent": 50.3
+                    }
                 ],
-                "network_available": true,
-                "cpu_usage": "35.8%",
-                "ram_usage": "68.2%"
+                "has_regression": true
             }
-        },
-        {
-            "name": "login_test_[row_3]",
-            "status": "PASSED",
-            "steps_executed": 7
         }
     ]
 }

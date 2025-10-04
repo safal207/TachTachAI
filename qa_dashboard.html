@@ -14,6 +14,7 @@
             --primary-color: #007bff;
             --passed-color: #28a745;
             --failed-color: #dc3545;
+            --regression-color: #fd7e14;
         }
         body {
             font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
@@ -23,7 +24,7 @@
             padding: 2em;
         }
         .container {
-            max-width: 1200px;
+            max-width: 1400px;
             margin: 0 auto;
             display: grid;
             grid-template-columns: 1fr 1fr;
@@ -75,12 +76,37 @@
             border: 1px solid var(--border-color);
             padding: 0.75em;
             text-align: left;
+            vertical-align: top;
         }
         th {
             background-color: var(--bg-color);
         }
         .status-PASSED { color: var(--passed-color); font-weight: bold; }
         .status-FAILED { color: var(--failed-color); font-weight: bold; }
+        .perf-regression-tag {
+            background-color: var(--regression-color);
+            color: white;
+            font-size: 0.8em;
+            font-weight: bold;
+            padding: 0.2em 0.5em;
+            border-radius: 4px;
+            margin-left: 10px;
+        }
+        .perf-details {
+            font-size: 0.9em;
+        }
+        .perf-step {
+            margin-top: 5px;
+            padding-top: 5px;
+            border-top: 1px solid #eee;
+        }
+        .perf-step:first-child {
+            border-top: none;
+            padding-top: 0;
+        }
+        .perf-step.regression {
+            color: var(--regression-color);
+        }
         a { color: var(--primary-color); text-decoration: none; }
         a:hover { text-decoration: underline; }
 
@@ -111,9 +137,6 @@
         button:hover {
             background-color: #0056b3;
         }
-        .hidden {
-            display: none;
-        }
     </style>
 </head>
 <body>
@@ -134,16 +157,14 @@
                     <label for="command-select">Select Command</label>
                     <select id="command-select">
                         <option value="run_tests">run_tests</option>
+                        <option value="run_tests_with_data">run_tests_with_data</option>
                         <option value="create_scenario">create_scenario</option>
                         <option value="update_baseline">update_baseline</option>
+                        <option value="create_performance_baseline">create_performance_baseline</option>
                         <option value="get_status">get_status</option>
                     </select>
                 </div>
-
-                <div id="params-container">
-                    <!-- Dynamic fields will be injected here -->
-                </div>
-
+                <div id="params-container"></div>
                 <button type="button" id="generate-btn">Download instructions.json</button>
             </form>
         </div>
@@ -158,6 +179,7 @@
                         <th>Test Case</th>
                         <th>Status</th>
                         <th>Details</th>
+                        <th>Performance</th>
                     </tr>
                 </thead>
                 <tbody></tbody>
@@ -177,33 +199,17 @@
             const generateBtn = document.getElementById('generate-btn');
 
             const paramTemplates = {
-                run_tests: `
-                    <div class="form-group">
-                        <label for="param-scenarios">Scenarios (comma-separated, or 'all')</label>
-                        <input type="text" id="param-scenarios" value="all">
-                    </div>`,
-                create_scenario: `
-                    <div class="form-group">
-                        <label for="param-name">Scenario Name</label>
-                        <input type="text" id="param-name" placeholder="e.g., successful_login">
-                    </div>
-                    <div class="form-group">
-                        <label for="param-steps">Steps (JSON format)</label>
-                        <textarea id="param-steps" placeholder='[\\n  {\\n    "action": "find-text",\\n    "target": "Login"\\n  }\\n]'></textarea>
-                    </div>`,
-                update_baseline: `
-                    <div class="form-group">
-                        <label for="param-visual_test_name">Visual Test Name</label>
-                        <input type="text" id="param-visual_test_name" placeholder="e.g., main_page">
-                    </div>`,
+                run_tests: `<div class="form-group"><label for="param-scenarios">Scenarios (comma-separated, or 'all')</label><input type="text" id="param-scenarios" value="all"></div>`,
+                run_tests_with_data: `<div class="form-group"><label for="param-scenario_name">Base Scenario Name</label><input type="text" id="param-scenario_name" placeholder="e.g., login_test"></div><div class="form-group"><label for="param-data_file">Data File Path</label><input type="text" id="param-data_file" placeholder="e.g., login_data.csv"></div>`,
+                create_scenario: `<div class="form-group"><label for="param-name">Scenario Name</label><input type="text" id="param-name" placeholder="e.g., successful_login"></div><div class="form-group"><label for="param-steps">Steps (JSON format)</label><textarea id="param-steps" placeholder='[\\n  {\\n    "action": "find-text",\\n    "target": "Login"\\n  }\\n]'></textarea></div>`,
+                update_baseline: `<div class="form-group"><label for="param-visual_test_name">Visual Test Name</label><input type="text" id="param-visual_test_name" placeholder="e.g., main_page"></div>`,
+                create_performance_baseline: `<div class="form-group"><label for="param-test_name">Test Name to Baseline</label><input type="text" id="param-test_name" placeholder="e.g., login_test"></div>`,
                 get_status: ``
             };
 
-            // --- File Upload and Dashboard Rendering ---
             reportFileInput.addEventListener('change', (event) => {
                 const file = event.target.files[0];
                 if (!file) return;
-
                 const reader = new FileReader();
                 reader.onload = (e) => {
                     try {
@@ -217,33 +223,46 @@
             });
 
             function renderDashboard(data) {
-                // Render summary
                 const summary = data.summary;
+                const perfRegressions = data.tests.filter(t => t.performance && t.performance.has_regression).length;
                 summaryGrid.innerHTML = `
                     <div class="summary-item"><div class="value">${summary.total}</div><div class="label">Total</div></div>
                     <div class="summary-item"><div class="value status-PASSED">${summary.passed}</div><div class="label">Passed</div></div>
                     <div class="summary-item"><div class="value status-FAILED">${summary.failed}</div><div class="label">Failed</div></div>
-                    <div class="summary-item"><div class="value">${summary.success_rate}%</div><div class="label">Success Rate</div></div>
+                    <div class="summary-item"><div class="value" style="color:var(--regression-color)">${perfRegressions}</div><div class="label">Perf. Regressions</div></div>
                 `;
 
-                // Render table
                 resultsTableBody.innerHTML = '';
                 data.tests.forEach(test => {
                     const row = document.createElement('tr');
-                    let details = '';
+
+                    let detailsHTML = '';
                     if (test.status === 'PASSED') {
-                        details = `Executed ${test.steps_executed} steps successfully.`;
+                        detailsHTML = `Executed ${test.steps_executed} steps successfully.`;
                     } else {
-                        details = `Failed at step ${test.failed_step}: <strong>${test.step_description}</strong><br>
-                                   <em>Error: ${test.error}</em><br>`;
+                        detailsHTML = `Failed at step ${test.failed_step}: <strong>${test.step_description}</strong><br><em>Error: ${test.error}</em><br>`;
                         if (test.screenshot) {
-                            details += `<a href="${test.screenshot}" target="_blank">View Screenshot</a>`;
+                            detailsHTML += `<a href="${test.screenshot}" target="_blank">View Screenshot</a>`;
                         }
                     }
+
+                    let perfHTML = 'N/A';
+                    if (test.performance) {
+                        const perf = test.performance;
+                        const regressionTag = perf.has_regression ? '<span class="perf-regression-tag">REGRESSION</span>' : '';
+                        perfHTML = `<strong>Total: ${perf.total_duration_ms.toFixed(2)}ms</strong> ${regressionTag}<hr class="perf-details">`;
+                        perf.steps.forEach(step => {
+                            const isReg = step.regression;
+                            const slowdown = step.slowdown_percent !== null ? `(${step.slowdown_percent > 0 ? '+' : ''}${step.slowdown_percent}%)` : '';
+                            perfHTML += `<div class="perf-step ${isReg ? 'regression' : ''}">Step ${step.step}: ${step.duration_ms}ms / Base: ${step.baseline_ms || 'N/A'}ms ${slowdown}</div>`;
+                        });
+                    }
+
                     row.innerHTML = `
                         <td>${test.name}</td>
                         <td class="status-${test.status}">${test.status}</td>
-                        <td>${details}</td>
+                        <td>${detailsHTML}</td>
+                        <td class="perf-details">${perfHTML}</td>
                     `;
                     resultsTableBody.appendChild(row);
                 });
@@ -251,7 +270,6 @@
                 dashboardSection.style.display = 'block';
             }
 
-            // --- Command Generation ---
             function updateCommandParams() {
                 paramsContainer.innerHTML = paramTemplates[commandSelect.value] || '';
             }
@@ -264,20 +282,23 @@
 
                 switch (command) {
                     case 'run_tests':
-                        const scenarios = document.getElementById('param-scenarios').value;
-                        params.scenarios = scenarios.split(',').map(s => s.trim());
+                        params.scenarios = document.getElementById('param-scenarios').value.split(',').map(s => s.trim());
+                        break;
+                    case 'run_tests_with_data':
+                        params.scenario_name = document.getElementById('param-scenario_name').value;
+                        params.data_file = document.getElementById('param-data_file').value;
                         break;
                     case 'create_scenario':
                         params.name = document.getElementById('param-name').value;
                         try {
                             params.steps = JSON.parse(document.getElementById('param-steps').value);
-                        } catch (e) {
-                            alert("Invalid JSON in steps: " + e.message);
-                            return;
-                        }
+                        } catch (e) { alert("Invalid JSON in steps: " + e.message); return; }
                         break;
                     case 'update_baseline':
                         params.visual_test_name = document.getElementById('param-visual_test_name').value;
+                        break;
+                    case 'create_performance_baseline':
+                        params.test_name = document.getElementById('param-test_name').value;
                         break;
                 }
 
@@ -286,8 +307,7 @@
             });
 
             function downloadJSON(data, filename) {
-                const jsonStr = JSON.stringify(data, null, 4);
-                const blob = new Blob([jsonStr], { type: 'application/json' });
+                const blob = new Blob([JSON.stringify(data, null, 4)], { type: 'application/json' });
                 const url = URL.createObjectURL(blob);
                 const a = document.createElement('a');
                 a.href = url;
@@ -298,7 +318,6 @@
                 URL.revokeObjectURL(url);
             }
 
-            // Initial setup
             updateCommandParams();
         });
     </script>

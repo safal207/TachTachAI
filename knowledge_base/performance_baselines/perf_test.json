@@ -1,0 +1,18 @@
+{
+    "total_duration_ms": 150.0,
+    "steps": [
+        {
+            "step": 1,
+            "duration_ms": 50.0,
+            "baseline_ms": null,
+            "regression": false
+        },
+        {
+            "step": 2,
+            "duration_ms": 100.0,
+            "baseline_ms": null,
+            "regression": false
+        }
+    ],
+    "has_regression": false
+}

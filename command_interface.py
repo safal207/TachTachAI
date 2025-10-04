@@ -8,12 +8,13 @@ from logger import log_action
 # Import functions from our refactored modules
 from test_runner import run_scenario_based_suite, run_data_driven_suite
 from scenario_manager import create_or_update_scenario, delete_visual_baseline
+from performance_tracker import delete_baseline as delete_performance_baseline
 
 # --- Constants ---
 INSTRUCTIONS_FILE = "claude_instructions.json"
 REPORT_FILE = "execution_report.json"
 PYTHON_CMD = "python" # or python3
-FRAMEWORK_VERSION = "3.0" # Updated version
+FRAMEWORK_VERSION = "4.0" # Updated version
 
 # --- Core Functions ---
 
@@ -114,6 +115,15 @@ def handle_get_status(params):
     except Exception as e:
         return {"status": "error", "message": "Failed to get status.", "details": str(e)}
 
+def handle_create_performance_baseline(params):
+    """Handler for the 'create_performance_baseline' command."""
+    test_name = params.get('test_name')
+    if not test_name:
+        return {"status": "error", "message": "Missing 'test_name' for create_performance_baseline."}
+    success = delete_performance_baseline(test_name)
+    return {"status": "completed" if success else "error", "message": f"Performance baseline for '{test_name}' will be recreated on next run."}
+
+
 # --- Main Loop ---
 def main():
     """Main loop to check for instructions and execute them."""
@@ -123,6 +133,7 @@ def main():
         "run_tests_with_data": handle_run_data_driven_tests,
         "create_scenario": handle_create_scenario,
         "update_baseline": handle_update_baseline,
+        "create_performance_baseline": handle_create_performance_baseline,
         "get_status": handle_get_status,
     }
 

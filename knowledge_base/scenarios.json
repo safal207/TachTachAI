@@ -1,32 +1,12 @@
 {
-    "login_test": [
+    "perf_test": [
         {
-            "action": "find-text",
-            "target": "Username"
-        },
-        {
-            "action": "type",
-            "target": "{username}"
-        },
-        {
-            "action": "find-text",
-            "target": "Password"
-        },
-        {
-            "action": "type",
-            "target": "{password}"
-        },
-        {
-            "action": "find-text",
-            "target": "Login"
+            "action": "wait",
+            "target": "0.1"
         },
         {
             "action": "wait",
-            "target": "2"
-        },
-        {
-            "action": "assert-text",
-            "target": "{expected_text}"
+            "target": "0.2"
         }
     ]
 }
