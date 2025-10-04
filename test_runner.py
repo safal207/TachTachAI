@@ -1,66 +1,64 @@
 import os
 import json
+import csv
 import subprocess
 import datetime
-import pyautogui
 from logger import log_action
+from diagnostics import run_diagnostics
 
 # --- Constants ---
 REPORTS_DIR = "reports"
 SCREENSHOTS_DIR = os.path.join(REPORTS_DIR, "screenshots")
 SCENARIO_FILE = os.path.join("knowledge_base", "scenarios.json")
-PYTHON_CMD = "python" # or "python3" depending on your system
+PYTHON_CMD = "python" # or "python3"
+
+# --- Helper Functions ---
 
 def get_scenarios():
     """Loads all test scenarios from the JSON file."""
-    log_action("Loading test scenarios...")
     if not os.path.exists(SCENARIO_FILE):
         log_action(f"Scenario file not found at {SCENARIO_FILE}", is_error=True)
         return None
     with open(SCENARIO_FILE, 'r') as f:
         return json.load(f)
 
-def take_failure_screenshot(scenario_name, step_index):
-    """Takes a screenshot and saves it with a descriptive name."""
-    timestamp = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
-    filename = f"{scenario_name}_step_{step_index + 1}_failure_{timestamp}.png"
-    filepath = os.path.join(SCREENSHOTS_DIR, filename)
-    try:
-        pyautogui.screenshot(filepath)
-        log_action(f"Failure screenshot saved to: {filepath}")
-        return filepath
-    except Exception as e:
-        log_action(f"Failed to take screenshot: {e}", is_error=True)
-        return None
+def _substitute_placeholders(steps, data_row):
+    """Substitutes placeholders like {column_name} in steps with data from a row."""
+    new_steps = json.loads(json.dumps(steps)) # Deep copy
+    for step in new_steps:
+        for key, value in step.items():
+            if isinstance(value, str):
+                try:
+                    step[key] = value.format(**data_row)
+                except KeyError:
+                    # Ignore if a placeholder doesn't exist in the data row
+                    pass
+    return new_steps
+
+# --- Core Test Execution ---
 
 def run_single_test(scenario_name, steps):
-    """Runs a single test case (scenario) and returns the result dictionary."""
+    """Runs a single, fully-defined test case and returns the result dictionary."""
     log_action(f"--- Running Test: {scenario_name} ---")
 
     for i, step in enumerate(steps):
         action = step.get('action')
         target = step.get('target')
-        timeout = step.get('timeout') # Will be None for most actions
+        timeout = step.get('timeout')
 
         log_action(f"  Executing Step {i+1}/{len(steps)}: {action} -> '{target}'")
 
-        # Construct the command to call smart_cursor.py
         command = [PYTHON_CMD, "smart_cursor.py", f"--{action}", target]
-        # Add timeout if it's a wait-for-* command
         if timeout:
             command.append(str(timeout))
 
-        # Execute the command as a subprocess
         result = subprocess.run(command, capture_output=True, text=True, check=False)
 
-        # Check the return code. 0 is success.
         if result.returncode != 0:
             log_action(f"  >> STEP FAILED! Return code: {result.returncode}", is_error=True)
-            screenshot_path = take_failure_screenshot(scenario_name, i)
-
-            step_description = f"{action} '{target}'"
-            if timeout:
-                step_description += f" (timeout: {timeout}s)"
+            diagnostics_data = run_diagnostics(scenario_name, i)
+            step_description = f"{action} '{target}'" + (f" (timeout: {timeout}s)" if timeout else "")
+            main_screenshot = diagnostics_data["screenshots"][0] if diagnostics_data.get("screenshots") else None
 
             return {
                 "name": scenario_name,
@@ -68,57 +66,76 @@ def run_single_test(scenario_name, steps):
                 "failed_step": i + 1,
                 "step_description": step_description,
                 "error": result.stdout.strip() or result.stderr.strip(),
-                "screenshot": screenshot_path
+                "screenshot": main_screenshot,
+                "diagnostics": diagnostics_data
             }
 
-    log_action(f"--- Test Passed: {scenario_name} ---")
-    return {
-        "name": scenario_name,
-        "status": "PASSED",
-        "steps_executed": len(steps)
-    }
+    return {"name": scenario_name, "status": "PASSED", "steps_executed": len(steps)}
 
-def run_test_suite(test_names=None):
-    """
-    Runs all test scenarios or a specific subset and returns the results.
-    This is the main entry point for external callers.
-    :param test_names: A list of test names to run. If None or ["all"], runs all.
-    :return: A list of result dictionaries.
-    """
-    log_action("Test run initiated.")
+# --- Test Suite Execution Modes ---
+
+def run_scenario_based_suite(test_names=None):
+    """Runs a standard test suite based on scenario names."""
+    log_action("Standard test suite run initiated.")
     scenarios = get_scenarios()
-
-    if not scenarios:
-        log_action("No test scenarios found to run.", is_error=True)
-        return []
+    if not scenarios: return []
 
     tests_to_run = scenarios
     if test_names and "all" not in test_names:
         tests_to_run = {name: steps for name, steps in scenarios.items() if name in test_names}
-        log_action(f"Running a subset of tests: {list(tests_to_run.keys())}")
 
     results = [run_single_test(name, steps) for name, steps in tests_to_run.items()]
     return results
 
+def run_data_driven_suite(scenario_name, data_file_path):
+    """Runs a single scenario multiple times with data from a CSV file."""
+    log_action(f"Data-driven test for '{scenario_name}' with '{data_file_path}' initiated.")
+
+    scenarios = get_scenarios()
+    if scenario_name not in scenarios:
+        return [{"name": scenario_name, "status": "ERROR", "error": "Base scenario not found."}]
+    base_steps = scenarios[scenario_name]
+
+    if not os.path.exists(data_file_path):
+        return [{"name": scenario_name, "status": "ERROR", "error": f"Data file not found: {data_file_path}"}]
+
+    results = []
+    try:
+        with open(data_file_path, 'r', newline='', encoding='utf-8') as f:
+            reader = csv.DictReader(f)
+            for i, row in enumerate(reader):
+                iteration_name = f"{scenario_name}_[row_{i+1}]"
+                iteration_steps = _substitute_placeholders(base_steps, row)
+                result = run_single_test(iteration_name, iteration_steps)
+                results.append(result)
+    except Exception as e:
+        return [{"name": scenario_name, "status": "ERROR", "error": f"Failed to process CSV: {e}"}]
+
+    return results
+
+# --- Main function for standalone execution ---
+
 def main():
-    """The main function for standalone execution, prints summary to console."""
+    """Main function for standalone execution, prints summary to console."""
     log_action("QA Test Runner session started (standalone mode).")
-    results = run_test_suite()
+    # Note: Standalone mode only runs scenario-based tests, not data-driven ones.
+    results = run_scenario_based_suite()
 
     if not results:
         log_action("No tests were run.")
         return
 
-    total_tests = len(results)
     passed_count = sum(1 for r in results if r['status'] == 'PASSED')
-    failed_count = total_tests - passed_count
+    failed_count = len(results) - passed_count
 
     print(f"\n--- Test Run Summary (Console) ---")
     for res in results:
         print(f"  - Test '{res['name']}': {res['status']}")
         if res['status'] == 'FAILED':
             print(f"    -> Failed at step {res.get('failed_step')}: {res.get('step_description')}")
-            print(f"    -> Screenshot: {res.get('screenshot')}")
+            diag = res.get('diagnostics', {})
+            print(f"    -> Diagnostics: CPU: {diag.get('cpu_usage')}, RAM: {diag.get('ram_usage')}, Network: {'OK' if diag.get('network_available') else 'FAIL'}")
+            print(f"    -> Screenshots: {diag.get('screenshots')}")
 
     print(f"\nResult: {passed_count} passed, {failed_count} failed out of {total_tests} total tests.")
     log_action("QA Test Runner session finished.")

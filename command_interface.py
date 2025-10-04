@@ -6,14 +6,14 @@ import datetime
 from logger import log_action
 
 # Import functions from our refactored modules
-from test_runner import run_test_suite
+from test_runner import run_scenario_based_suite, run_data_driven_suite
 from scenario_manager import create_or_update_scenario, delete_visual_baseline
 
 # --- Constants ---
 INSTRUCTIONS_FILE = "claude_instructions.json"
 REPORT_FILE = "execution_report.json"
 PYTHON_CMD = "python" # or python3
-FRAMEWORK_VERSION = "2.0"
+FRAMEWORK_VERSION = "3.0" # Updated version
 
 # --- Core Functions ---
 
@@ -47,21 +47,16 @@ def cleanup_instructions():
         os.remove(INSTRUCTIONS_FILE)
         log_action("Instructions file cleaned up.")
 
-# --- Command Handlers ---
+def _format_test_report(test_results):
+    """Helper function to format the final JSON report from test results."""
+    if not test_results:
+        return {"status": "error", "message": "No test results to report."}
 
-def handle_run_tests(params):
-    """Handler for the 'run_tests' command."""
-    log_action(f"Executing 'run_tests' with params: {params}")
-    test_names = params.get("scenarios", ["all"])
-
-    test_results = run_test_suite(test_names)
-
-    # Format the report according to the spec
     passed = sum(1 for r in test_results if r['status'] == 'PASSED')
     failed = len(test_results) - passed
     success_rate = (passed / len(test_results) * 100) if test_results else 100
 
-    report = {
+    return {
         "timestamp": datetime.datetime.now().isoformat(),
         "framework_version": FRAMEWORK_VERSION,
         "summary": {
@@ -72,61 +67,60 @@ def handle_run_tests(params):
         },
         "tests": test_results
     }
-    return report
+
+# --- Command Handlers ---
+
+def handle_run_tests(params):
+    """Handler for the 'run_tests' command."""
+    log_action(f"Executing 'run_tests' with params: {params}")
+    test_names = params.get("scenarios", ["all"])
+    test_results = run_scenario_based_suite(test_names)
+    return _format_test_report(test_results)
+
+def handle_run_data_driven_tests(params):
+    """Handler for the 'run_tests_with_data' command."""
+    log_action(f"Executing 'run_tests_with_data' with params: {params}")
+    scenario_name = params.get("scenario_name")
+    data_file = params.get("data_file")
+
+    if not scenario_name or not data_file:
+        return {"status": "error", "message": "Missing 'scenario_name' or 'data_file'."}
+
+    test_results = run_data_driven_suite(scenario_name, data_file)
+    return _format_test_report(test_results)
 
 def handle_create_scenario(params):
     """Handler for the 'create_scenario' command."""
-    log_action(f"Executing 'create_scenario' with params: {params}")
     name = params.get('name')
     steps = params.get('steps')
-
     if not name or not steps:
-        return {"status": "error", "message": "Missing 'name' or 'steps' for create_scenario."}
-
+        return {"status": "error", "message": "Missing 'name' or 'steps'."}
     success = create_or_update_scenario(name, steps)
-    if success:
-        return {"status": "completed", "message": f"Scenario '{name}' created/updated successfully."}
-    else:
-        return {"status": "error", "message": f"Failed to create/update scenario '{name}'."}
-
+    return {"status": "completed" if success else "error", "message": f"Scenario '{name}' processed."}
 
 def handle_update_baseline(params):
     """Handler for the 'update_baseline' command."""
-    log_action(f"Executing 'update_baseline' with params: {params}")
     baseline_name = params.get('visual_test_name')
     if not baseline_name:
-        return {"status": "error", "message": "Missing 'visual_test_name' for update_baseline."}
-
+        return {"status": "error", "message": "Missing 'visual_test_name'."}
     success = delete_visual_baseline(baseline_name)
-    if success:
-        return {"status": "completed", "message": f"Visual baseline for '{baseline_name}' deleted. It will be recreated on the next run."}
-    else:
-        return {"status": "error", "message": f"Failed to delete visual baseline for '{baseline_name}'. It might not exist."}
-
+    return {"status": "completed" if success else "error", "message": f"Baseline '{baseline_name}' processed."}
 
 def handle_get_status(params):
     """Handler for the 'get_status' command."""
-    log_action(f"Executing 'get_status' with params: {params}")
     try:
-        result = subprocess.run(
-            [PYTHON_CMD, "smart_cursor.py", "--status"],
-            capture_output=True, text=True, check=True
-        )
-        # The output of --status is human-readable, so we just wrap it.
+        result = subprocess.run([PYTHON_CMD, "smart_cursor.py", "--status"], capture_output=True, text=True, check=True)
         return {"status": "completed", "data": result.stdout}
-    except subprocess.CalledProcessError as e:
-        return {"status": "error", "message": "Failed to get status.", "details": e.stderr}
-    except FileNotFoundError:
-        return {"status": "error", "message": "smart_cursor.py not found or python command is incorrect."}
-
+    except Exception as e:
+        return {"status": "error", "message": "Failed to get status.", "details": str(e)}
 
 # --- Main Loop ---
-
 def main():
     """Main loop to check for instructions and execute them."""
-    log_action("Command Interface started. Watching for instructions...")
+    log_action(f"Command Interface v{FRAMEWORK_VERSION} started. Watching for instructions...")
     command_handlers = {
         "run_tests": handle_run_tests,
+        "run_tests_with_data": handle_run_data_driven_tests,
         "create_scenario": handle_create_scenario,
         "update_baseline": handle_update_baseline,
         "get_status": handle_get_status,
@@ -138,13 +132,13 @@ def main():
             command = instructions.get("command")
             params = instructions.get("params", {})
 
-            if command in command_handlers:
-                execution_report = command_handlers[command](params)
+            handler = command_handlers.get(command)
+            if handler:
+                execution_report = handler(params)
                 write_report(execution_report)
             else:
                 log_action(f"Unknown command received: {command}", is_error=True)
-                error_report = {"status": "error", "command": command, "message": "Unknown command."}
-                write_report(error_report)
+                write_report({"status": "error", "command": command, "message": "Unknown command."})
 
             cleanup_instructions()
 

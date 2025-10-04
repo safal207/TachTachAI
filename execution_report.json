@@ -1,25 +1,40 @@
 {
-    "timestamp": "2025-10-03T23:51:00",
-    "framework_version": "2.0",
+    "timestamp": "2025-10-04T00:21:30.123456",
+    "framework_version": "3.0",
     "summary": {
-        "total": 2,
-        "passed": 1,
+        "total": 3,
+        "passed": 2,
         "failed": 1,
-        "success_rate": 50.0
+        "success_rate": 66.67
     },
     "tests": [
         {
-            "name": "successful_login_test",
+            "name": "login_test_[row_1]",
             "status": "PASSED",
-            "steps_executed": 5
+            "steps_executed": 7
         },
         {
-            "name": "failing_checkout_test",
+            "name": "login_test_[row_2]",
             "status": "FAILED",
-            "failed_step": 3,
-            "step_description": "assert-text 'Thank you for your order!'",
-            "error": "FAILURE: Did not find text 'Thank you for your order!' after self-healing.",
-            "screenshot": "reports/screenshots/failing_checkout_test_step_3_failure_20251003_235000.png"
+            "failed_step": 7,
+            "step_description": "assert-text '{expected_text}'",
+            "error": "FAILURE: Did not find text 'Invalid credentials' after self-healing.",
+            "screenshot": "reports/screenshots/login_test_[row_2]_step_7_failure_20251004_002125_shot_1.png",
+            "diagnostics": {
+                "screenshots": [
+                    "reports/screenshots/login_test_[row_2]_step_7_failure_20251004_002125_shot_1.png",
+                    "reports/screenshots/login_test_[row_2]_step_7_failure_20251004_002126_shot_2.png",
+                    "reports/screenshots/login_test_[row_2]_step_7_failure_20251004_002127_shot_3.png"
+                ],
+                "network_available": true,
+                "cpu_usage": "35.8%",
+                "ram_usage": "68.2%"
+            }
+        },
+        {
+            "name": "login_test_[row_3]",
+            "status": "PASSED",
+            "steps_executed": 7
         }
     ]
 }

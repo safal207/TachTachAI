@@ -1,0 +1,4 @@
+username,password,expected_text
+correct_user,correct_pass,"Welcome, correct_user!"
+wrong_user,wrong_pass,"Invalid credentials"
+admin,admin_pass,"Welcome, Admin!"

@@ -1,23 +1,32 @@
 {
-    "successful_test": [
+    "login_test": [
         {
-            "action": "wait-for-text",
-            "target": "Smart Cursor",
-            "timeout": "5"
+            "action": "find-text",
+            "target": "Username"
         },
         {
-            "action": "assert-text",
-            "target": "Smart Cursor"
-        }
-    ],
-    "failing_test": [
+            "action": "type",
+            "target": "{username}"
+        },
+        {
+            "action": "find-text",
+            "target": "Password"
+        },
+        {
+            "action": "type",
+            "target": "{password}"
+        },
+        {
+            "action": "find-text",
+            "target": "Login"
+        },
         {
             "action": "wait",
-            "target": "1"
+            "target": "2"
         },
         {
             "action": "assert-text",
-            "target": "This text will definitely not be on the screen"
+            "target": "{expected_text}"
         }
     ]
 }
