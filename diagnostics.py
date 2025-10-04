@@ -46,6 +46,15 @@ def take_diagnostic_screenshots(scenario_name, step_index):
     :return: A list of paths to the saved screenshots.
     """
     log_action("Taking diagnostic screenshots...")
+    try:
+        os.makedirs(SCREENSHOTS_DIR, exist_ok=True)
+    except OSError as e:
+        log_action(
+            f"Unable to ensure screenshots directory '{SCREENSHOTS_DIR}': {e}",
+            is_error=True,
+        )
+        return []
+
     paths = []
     base_filename = f"{scenario_name}_step_{step_index + 1}_failure"
 
