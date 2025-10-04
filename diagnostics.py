@@ -1,5 +1,7 @@
 import os
 import time
+import math
+import socket
 import subprocess
 import datetime
 import platform
@@ -26,37 +28,73 @@ def get_system_stats():
 
 def check_network(host="8.8.8.8", port=53, timeout=3):
     """
-    Checks for internet connectivity by attempting to reach a DNS host via ``ping``.
-    The invocation is tailored to the underlying platform (Windows vs. Unix-like
-    systems) so that timeouts are respected consistently.
-    :return: True if the command succeeds, False otherwise.
+    Checks for internet connectivity with resilient fallbacks.
+
+    The function first attempts to ``ping`` the target using platform-specific
+    arguments (Windows vs. Unix-like). If ``ping`` is unavailable or fails, the
+    routine falls back to opening a TCP socket to the supplied host/port so the
+    diagnostics report can still indicate connectivity status in restricted
+    environments.
+
+    :return: True if a ping or socket connection succeeds, False otherwise.
     """
     try:
-        system = platform.system()
+        numeric_timeout = float(timeout)
+        if numeric_timeout <= 0:
+            raise ValueError
+    except (TypeError, ValueError):
+        log_action(
+            f"Invalid timeout '{timeout}' received; defaulting to 3 seconds.",
+            is_error=True,
+        )
+        numeric_timeout = 3.0
 
-        # Build the ping command using platform specific flags.
-        if system == "Windows":
-            # Windows uses "-n" for the packet count and expects timeout in ms via "-w".
-            command = [
-                "ping",
-                "-n",
-                "1",
-                "-w",
-                str(int(timeout * 1000)),
-                host,
-            ]
-        else:
-            # Unix-like systems use "-c" for packet count and timeout is in seconds via "-W".
-            command = ["ping", "-c", "1", "-W", str(int(timeout)), host]
+    system = platform.system()
 
-        result = subprocess.run(command, capture_output=True, text=True, check=False)
-        return result.returncode == 0
+    # Build the ping command using platform specific flags.
+    if system == "Windows":
+        # Windows uses "-n" for the packet count and expects timeout in ms via "-w".
+        command = [
+            "ping",
+            "-n",
+            "1",
+            "-w",
+            str(int(numeric_timeout * 1000)),
+            host,
+        ]
+    else:
+        # Unix-like systems use "-c" for packet count and timeout is in seconds via "-W".
+        command = ["ping", "-c", "1", "-W", str(int(max(1, math.ceil(numeric_timeout)))), host]
+
+    try:
+        result = subprocess.run(
+            command,
+            capture_output=True,
+            text=True,
+            check=False,
+            timeout=numeric_timeout + 1,
+        )
+        if result.returncode == 0:
+            return True
     except FileNotFoundError:
         log_action("Network check failed: 'ping' command not found.", is_error=True)
-        return False
+    except subprocess.TimeoutExpired:
+        log_action(
+            f"Network check timed out after {numeric_timeout} seconds (ping).",
+            is_error=True,
+        )
     except Exception as e:
-        log_action(f"Network check failed: {e}", is_error=True)
-        return False
+        log_action(f"Network check failed via ping: {e}", is_error=True)
+
+    # Fallback to a socket-based connectivity test so environments without ping
+    # (e.g., minimal containers) can still report accurate diagnostics.
+    try:
+        with socket.create_connection((host, port), timeout=numeric_timeout):
+            return True
+    except OSError as e:
+        log_action(f"Network check failed via socket: {e}", is_error=True)
+
+    return False
 
 def take_diagnostic_screenshots(scenario_name, step_index):
     """
