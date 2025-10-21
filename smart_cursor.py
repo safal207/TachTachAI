@@ -50,58 +50,68 @@ def action_handler(name):
 
 # --- Image/OCR Actions ---
 @action_handler("find-image")
-def find_image_and_click(object_name, **kwargs):
+def find_image_and_click(target, **kwargs):
+    object_name = target
     # ... (code from previous versions) ...
     return True # Placeholder
 
 @action_handler("find-text")
-def find_text_and_click(text_to_find, **kwargs):
+def find_text_and_click(target, **kwargs):
+    text_to_find = target
     # ... (code from previous versions) ...
     return True # Placeholder
 
 @action_handler("assert-image")
-def assert_image_exists(object_name, **kwargs):
+def assert_image_exists(target, **kwargs):
+    object_name = target
     # ... (code from previous versions) ...
     return True # Placeholder
 
 @action_handler("assert-text")
-def assert_text_exists(text_to_find, **kwargs):
+def assert_text_exists(target, **kwargs):
+    text_to_find = target
     # ... (code from previous versions) ...
     return True # Placeholder
 
 # --- UIA Actions ---
 @action_handler("start-app")
-def start_app_action(path, **kwargs):
+def start_app_action(target, **kwargs):
+    path = target
     if not uia_backend: return False
     return uia_backend.start_app(path)
 
 @action_handler("connect-app")
-def connect_app_action(title, **kwargs):
+def connect_app_action(target, **kwargs):
+    title = target
     if not uia_backend: return False
     return uia_backend.connect_to_app(title)
 
 @action_handler("find-uia-name")
-def find_uia_by_name(name, **kwargs):
+def find_uia_by_name(target, **kwargs):
+    name = target
     if not uia_backend: return False
     return uia_backend.find_element_by_name(name) is not None
 
 @action_handler("find-uia-id")
-def find_uia_by_id(automation_id, **kwargs):
+def find_uia_by_id(target, **kwargs):
+    automation_id = target
     if not uia_backend: return False
     return uia_backend.find_element_by_automation_id(automation_id) is not None
 
 @action_handler("click-uia")
-def click_uia_action(ignored_arg, **kwargs): # Takes an arg but ignores it
+def click_uia_action(target=None, **kwargs): # Takes an arg but ignores it
     if not uia_backend: return False
     return uia_backend.click_element()
 
 @action_handler("type-uia")
-def type_uia_action(text, **kwargs):
+def type_uia_action(target, **kwargs):
+    text = target
     if not uia_backend: return False
     return uia_backend.type_into_element(text)
 
 @action_handler("assert-uia-text")
-def assert_uia_text_action(expected_text, **kwargs):
+def assert_uia_text_action(target, **kwargs):
+    expected_text = target
     if not uia_backend: return False
     actual_text = uia_backend.get_element_text()
     if actual_text is None:
@@ -113,7 +123,8 @@ def assert_uia_text_action(expected_text, **kwargs):
 
 # --- General Actions ---
 @action_handler("wait")
-def wait_action(seconds, **kwargs):
+def wait_action(target, **kwargs):
+    seconds = target
     try:
         time.sleep(float(seconds))
         return True
@@ -140,8 +151,22 @@ def execute_scenario(scenario_name):
             log_action(f"Unknown action '{action_name}' in scenario.", is_error=True)
             return False
 
-        # Pass all step info to the handler
-        success = handler(**step)
+        handler_kwargs = {k: v for k, v in step.items() if k not in {"action", "target"}}
+        try:
+            success = handler(target=target, **handler_kwargs)
+        except TypeError as exc:
+            log_action(
+                f"Handler '{action_name}' rejected provided parameters {handler_kwargs}: {exc}",
+                is_error=True,
+            )
+            return False
+        except Exception as exc:
+            log_action(
+                f"Handler '{action_name}' raised an unexpected error: {exc}",
+                is_error=True,
+            )
+            return False
+
         if not success:
             log_action(f"Scenario '{scenario_name}' failed at step {i}.", is_error=True)
             return False
@@ -168,9 +193,21 @@ if __name__ == "__main__":
     handler = ACTION_HANDLERS.get(command)
 
     if handler:
-        # We create a mock step dictionary to pass to the handler
-        mock_step = {'action': command.strip('--'), 'target': argument}
-        success = handler(**mock_step)
+        try:
+            success = handler(target=argument)
+        except TypeError as exc:
+            log_action(
+                f"Command '{command}' rejected provided argument '{argument}': {exc}",
+                is_error=True,
+            )
+            sys.exit(1)
+        except Exception as exc:
+            log_action(
+                f"Command '{command}' raised an unexpected error: {exc}",
+                is_error=True,
+            )
+            sys.exit(1)
+
         sys.exit(0) if success else sys.exit(1)
     elif command == "--run-scenario":
         success = execute_scenario(argument)
