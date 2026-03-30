@@ -5,13 +5,25 @@ import socket
 import subprocess
 import datetime
 import platform
-import pyautogui
 import psutil
 from logger import log_action
 
 # --- Constants ---
 REPORTS_DIR = "reports"
 SCREENSHOTS_DIR = os.path.join(REPORTS_DIR, "screenshots")
+
+
+def _get_pyautogui():
+    """
+    Lazily imports pyautogui so non-GUI/headless environments can still import
+    diagnostics module and run non-screenshot checks.
+    """
+    try:
+        import pyautogui  # type: ignore
+        return pyautogui
+    except Exception as e:
+        log_action(f"pyautogui unavailable for screenshots: {e}", is_error=True)
+        return None
 
 def get_system_stats():
     """
@@ -103,6 +115,10 @@ def take_diagnostic_screenshots(scenario_name, step_index):
     :return: A list of paths to the saved screenshots.
     """
     log_action("Taking diagnostic screenshots...")
+    pyautogui = _get_pyautogui()
+    if pyautogui is None:
+        log_action("Skipping screenshots because pyautogui is unavailable.", is_error=True)
+        return []
     try:
         os.makedirs(SCREENSHOTS_DIR, exist_ok=True)
     except OSError as e:

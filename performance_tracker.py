@@ -49,6 +49,26 @@ def delete_baseline(test_name):
         log_action(f"Baseline for '{test_name}' not found. Nothing to delete.")
         return True # It's not an error if it's already gone
 
+
+def create_baseline(test_name):
+    """Creates an empty performance baseline if it does not already exist."""
+    baseline_path = os.path.join(BASELINE_DIR, f"{test_name}.json")
+    if os.path.exists(baseline_path):
+        log_action(f"Baseline for '{test_name}' already exists. No changes made.")
+        return True
+
+    empty_baseline = {
+        "total_duration_ms": 0,
+        "steps": [],
+        "has_regression": False
+    }
+    try:
+        save_baseline(test_name, empty_baseline)
+        return True
+    except Exception as e:
+        log_action(f"Error creating baseline for '{test_name}': {e}", is_error=True)
+        return False
+
 # --- Core Logic Class ---
 
 class PerformanceTracker:

@@ -3,7 +3,6 @@ import sys
 import json
 import time
 import datetime
-import pyautogui
 from logger import log_action
 
 # --- Backend Imports ---

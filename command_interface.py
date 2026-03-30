@@ -8,7 +8,7 @@ from logger import log_action
 # Import functions from our refactored modules
 from test_runner import run_scenario_based_suite, run_data_driven_suite
 from scenario_manager import create_or_update_scenario, delete_visual_baseline
-from performance_tracker import delete_baseline as delete_performance_baseline
+from performance_tracker import create_baseline as create_performance_baseline
 from analysis_packager import create_analysis_package
 
 # --- Constants ---
@@ -76,7 +76,7 @@ command_handlers = {
     "run_tests_with_data": lambda p: _format_test_report(run_data_driven_suite(p.get("scenario_name"), p.get("data_file"))),
     "create_scenario": lambda p: {"status": "completed" if create_or_update_scenario(p.get('name'), p.get('steps')) else "error"},
     "update_baseline": lambda p: {"status": "completed" if delete_visual_baseline(p.get('visual_test_name')) else "error"},
-    "create_performance_baseline": lambda p: {"status": "completed" if delete_performance_baseline(p.get('test_name')) else "error"},
+    "create_performance_baseline": lambda p: {"status": "completed" if create_performance_baseline(p.get('test_name')) else "error"},
     "get_status": lambda p: {"data": subprocess.run([PYTHON_CMD, "smart_cursor.py", "--status"], capture_output=True, text=True).stdout}
 }
 

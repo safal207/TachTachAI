@@ -82,16 +82,15 @@ def record_scenario_interactive():
 
     print("\n--- Start adding steps to your test case ---")
     print("\nAvailable Action Categories:")
-    print("  - General: type, wait")
-    print("  - Image/OCR: find-image, find-text, assert-image, assert-text, wait-for-image, wait-for-text, assert-visuals")
+    print("  - General: wait")
+    print("  - Image/OCR: find-image, find-text, assert-image, assert-text")
     print("  - UIA (Windows): start-app, connect-app, find-uia-name, find-uia-id, type-uia, click-uia, assert-uia-text")
-    print("\nUsage: action \"target\" OR wait-for-* \"target\" <seconds>")
+    print("\nUsage: action \"target\"")
     print("Type 'done' when you are finished.")
 
     steps = []
     valid_actions = [
-        "type", "wait", "find-image", "find-text", "assert-image", "assert-text",
-        "wait-for-image", "wait-for-text", "assert-visuals",
+        "wait", "find-image", "find-text", "assert-image", "assert-text",
         "start-app", "connect-app", "find-uia-name", "find-uia-id",
         "type-uia", "click-uia", "assert-uia-text"
     ]
@@ -109,15 +108,9 @@ def record_scenario_interactive():
             print(f"Invalid action '{action}'. Please check the list of available actions.")
             continue
 
-        step = None
         try:
-            if action in ["wait-for-image", "wait-for-text"]:
-                target = " ".join(parts[1:-1]).strip('"\'')
-                timeout = parts[-1]
-                step = {"action": action, "target": target, "timeout": timeout}
-            else:
-                target = " ".join(parts[1:]).strip('"\'')
-                step = {"action": action, "target": target}
+            target = " ".join(parts[1:]).strip('"\'')
+            step = {"action": action, "target": target}
         except IndexError:
             print("Invalid command format.")
             continue
