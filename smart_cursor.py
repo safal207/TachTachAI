@@ -130,6 +130,21 @@ def wait_action(target, **kwargs):
     except (ValueError, TypeError):
         return False
 
+
+@action_handler("status")
+def status_action(target="", **kwargs):
+    """
+    Prints runtime status as JSON for external callers (e.g., command_interface).
+    """
+    status_payload = {
+        "timestamp": datetime.datetime.now().isoformat(),
+        "uia_enabled": bool(uia_backend and getattr(uia_backend, "UIA_ENABLED", False)),
+        "ocr_enabled": bool(pytesseract),
+        "available_actions": sorted(ACTION_HANDLERS.keys()),
+    }
+    print(json.dumps(status_payload))
+    return True
+
 # --- Scenario Execution ---
 def execute_scenario(scenario_name):
     scenarios = get_scenarios()

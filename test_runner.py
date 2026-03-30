@@ -46,10 +46,17 @@ def run_single_test(scenario_name, steps):
         action = step.get('action')
         target = step.get('target')
         timeout = step.get('timeout')
+        if not action:
+            return {
+                "name": scenario_name,
+                "status": "ERROR",
+                "error": f"Step {i+1} is missing required field 'action'."
+            }
 
-        log_action(f"  Executing Step {i+1}/{len(steps)}: {action} -> '{target}'")
+        normalized_target = "" if target is None else str(target)
+        log_action(f"  Executing Step {i+1}/{len(steps)}: {action} -> '{normalized_target}'")
 
-        command = [PYTHON_CMD, "smart_cursor.py", f"--{action}", target]
+        command = [PYTHON_CMD, "smart_cursor.py", f"--{action}", normalized_target]
         if timeout:
             command.append(str(timeout))
 
@@ -61,7 +68,7 @@ def run_single_test(scenario_name, steps):
             log_action(f"  >> STEP FAILED! Return code: {result.returncode}", is_error=True)
             diagnostics_data = run_diagnostics(scenario_name, i)
             performance_data = perf_tracker.finalize()
-            step_description = f"{action} '{target}'" + (f" (timeout: {timeout}s)" if timeout else "")
+            step_description = f"{action} '{normalized_target}'" + (f" (timeout: {timeout}s)" if timeout else "")
             main_screenshot = diagnostics_data["screenshots"][0] if diagnostics_data.get("screenshots") else None
 
             return {
@@ -101,6 +108,10 @@ def run_scenario_based_suite(test_names=None):
 def run_data_driven_suite(scenario_name, data_file_path):
     """Runs a single scenario multiple times with data from a CSV file."""
     log_action(f"Data-driven test for '{scenario_name}' with '{data_file_path}' initiated.")
+    if not scenario_name:
+        return [{"name": "unknown", "status": "ERROR", "error": "Scenario name is required."}]
+    if not data_file_path or not isinstance(data_file_path, str):
+        return [{"name": scenario_name, "status": "ERROR", "error": "A valid data_file path is required."}]
 
     scenarios = get_scenarios()
     if scenario_name not in scenarios:

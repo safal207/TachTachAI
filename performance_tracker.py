@@ -52,6 +52,10 @@ def delete_baseline(test_name):
 
 def create_baseline(test_name):
     """Creates an empty performance baseline if it does not already exist."""
+    if not test_name or not isinstance(test_name, str):
+        log_action("Cannot create baseline: 'test_name' must be a non-empty string.", is_error=True)
+        return False
+
     baseline_path = os.path.join(BASELINE_DIR, f"{test_name}.json")
     if os.path.exists(baseline_path):
         log_action(f"Baseline for '{test_name}' already exists. No changes made.")

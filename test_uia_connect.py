@@ -1,69 +1,44 @@
 """
-UIA test that connects to existing Notepad
+UIA test that connects to existing Notepad process.
 """
+import sys
 import time
 import subprocess
-from pywinauto.application import Application
+import pytest
 
-print("=== Testing UIA Backend (Connect Mode) ===\n")
+pytestmark = pytest.mark.skipif(sys.platform != "win32", reason="Requires Windows UI Automation stack.")
 
-try:
-    # Start Notepad manually first
-    print("[1] Starting Notepad in background...")
+
+def test_uia_connect_notepad():
+    from pywinauto.application import Application
+
     proc = subprocess.Popen(["notepad.exe"])
-    time.sleep(2)  # Give it time to start
+    time.sleep(2)
 
-    print("[2] Connecting to Notepad by PID...")
-    app = Application(backend="uia").connect(process=proc.pid)
-
-    print("[3] Getting window handle...")
-    window = app.top_window()
-    print(f"    Window title: {window.window_text()}")
-
-    # Find the text editor by class
-    print("[4] Finding Edit control...")
-    edit = window.child_window(class_name="Edit", found_index=0)
-
-    print("[5] Typing text...")
-    edit.set_focus()
-    edit.type_keys("Hello from UIA Backend!", with_spaces=True, pause=0.05)
-
-    time.sleep(1)
-
-    print("[6] Reading text...")
-    text = edit.window_text()
-    print(f"    Got: '{text}'")
-
-    if "Hello from UIA Backend!" in text:
-        print("\n[PASS] Text verification successful!")
-    else:
-        print(f"\n[FAIL] Text mismatch!")
-
-    print("[7] Closing Notepad...")
-    window.close()
-
-    # Handle save dialog
-    time.sleep(0.5)
     try:
-        # Try to find "Don't Save" button
-        app2 = Application(backend="uia").connect(title_re=".*Notepad")
-        dlg = app2.top_window()
-        btn = dlg.child_window(title="Don't Save", control_type="Button")
-        btn.click()
-        print("    Closed without saving")
-    except:
-        print("    Already closed")
+        app = Application(backend="uia").connect(process=proc.pid)
+        window = app.top_window()
 
-    print("\n[SUCCESS] UIA Backend test passed!")
+        edit = window.child_window(class_name="Edit", found_index=0)
+        edit.set_focus()
+        edit.type_keys("Hello from UIA Backend!", with_spaces=True, pause=0.05)
 
-except Exception as e:
-    print(f"\n[ERROR] Test failed: {e}")
-    import traceback
-    traceback.print_exc()
+        time.sleep(1)
+        text = edit.window_text()
+        assert "Hello from UIA Backend!" in text
 
-    # Cleanup
-    try:
-        subprocess.run(["taskkill", "//F", "//IM", "notepad.exe"],
-                      capture_output=True, check=False)
-    except:
-        pass
+        window.close()
+        time.sleep(0.5)
+        try:
+            app2 = Application(backend="uia").connect(title_re=".*Notepad")
+            dlg = app2.top_window()
+            btn = dlg.child_window(title="Don't Save", control_type="Button")
+            btn.click()
+        except Exception:
+            pass
+    finally:
+        subprocess.run(["taskkill", "/F", "/IM", "notepad.exe"], capture_output=True, check=False)
+
+
+if __name__ == "__main__":
+    pytest.main([__file__, "-q"])
