@@ -6,6 +6,7 @@ from logger import log_action
 # --- Constants ---
 SCENARIO_FILE = os.path.join("knowledge_base", "scenarios.json")
 BASELINE_DIR = os.path.join("knowledge_base", "visual_baselines")
+ENGINE_MODE = os.getenv("SMART_CURSOR_ENGINE", "uia").strip().lower()
 
 # --- Programmatic API for Command Interface ---
 
@@ -83,17 +84,23 @@ def record_scenario_interactive():
     print("\n--- Start adding steps to your test case ---")
     print("\nAvailable Action Categories:")
     print("  - General: wait")
-    print("  - Image/OCR: find-image, find-text, assert-image, assert-text")
-    print("  - UIA (Windows): start-app, connect-app, find-uia-name, find-uia-id, type-uia, click-uia, assert-uia-text")
+    if ENGINE_MODE == "ocr":
+        print("  - Image/OCR: find-image, find-text, assert-image, assert-text")
+    else:
+        print("  - UIA (Windows): start-app, connect-app, find-uia-name, find-uia-id, type-uia, click-uia, assert-uia-text")
     print("\nUsage: action \"target\"")
     print("Type 'done' when you are finished.")
 
     steps = []
-    valid_actions = [
-        "wait", "find-image", "find-text", "assert-image", "assert-text",
-        "start-app", "connect-app", "find-uia-name", "find-uia-id",
-        "type-uia", "click-uia", "assert-uia-text"
-    ]
+    if ENGINE_MODE == "ocr":
+        valid_actions = [
+            "wait", "find-image", "find-text", "assert-image", "assert-text"
+        ]
+    else:
+        valid_actions = [
+            "wait", "start-app", "connect-app", "find-uia-name", "find-uia-id",
+            "type-uia", "click-uia", "assert-uia-text"
+        ]
 
     while True:
         command_input = input(f"Step {len(steps) + 1}: ").strip()

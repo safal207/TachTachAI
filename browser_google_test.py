@@ -4,12 +4,11 @@ Tests browser automation with Cursor IDE and Google search
 """
 import time
 import subprocess
-import os
 import sys
 import pytest
 
 pytestmark = pytest.mark.skipif(
-    sys.platform != "win32" or not os.environ.get("DISPLAY"),
+    sys.platform != "win32",
     reason="Browser UI test requires interactive Windows GUI session.",
 )
 
