@@ -2,6 +2,7 @@ import json
 import os
 import sys
 from logger import log_action
+from validation import validate_steps
 
 # --- Constants ---
 SCENARIO_FILE = os.path.join("knowledge_base", "scenarios.json")
@@ -19,6 +20,10 @@ def create_or_update_scenario(name, steps):
     """
     if not name or not steps:
         log_action("Scenario name and steps cannot be empty.", is_error=True)
+        return False
+    is_valid, error = validate_steps(steps)
+    if not is_valid:
+        log_action(f"Scenario validation failed for '{name}': {error}", is_error=True)
         return False
 
     log_action(f"Programmatically creating/updating scenario: '{name}'")

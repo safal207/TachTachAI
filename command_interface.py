@@ -10,6 +10,7 @@ from test_runner import run_scenario_based_suite, run_data_driven_suite
 from scenario_manager import create_or_update_scenario, delete_visual_baseline
 from performance_tracker import create_baseline as create_performance_baseline
 from analysis_packager import create_analysis_package
+from validation import validate_command_payload
 
 # --- Constants ---
 RECOMMENDATIONS_FILE = "recommendations.json"
@@ -94,6 +95,11 @@ command_handlers = {
 
 def execute_command(command_data):
     """Executes a single command dictionary."""
+    is_valid, error = validate_command_payload(command_data)
+    if not is_valid:
+        log_action(f"Invalid command payload: {error}", is_error=True)
+        return {"status": "error", "message": error}
+
     command_name = command_data.get("command")
     params = command_data.get("params", {})
     handler = command_handlers.get(command_name)

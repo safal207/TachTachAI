@@ -6,6 +6,7 @@ import datetime
 from logger import log_action
 from diagnostics import run_diagnostics
 from performance_tracker import PerformanceTracker
+from validation import validate_scenarios_payload
 
 # --- Constants ---
 REPORTS_DIR = "reports"
@@ -21,7 +22,12 @@ def get_scenarios():
         log_action(f"Scenario file not found at {SCENARIO_FILE}", is_error=True)
         return None
     with open(SCENARIO_FILE, 'r') as f:
-        return json.load(f)
+        scenarios = json.load(f)
+    is_valid, error = validate_scenarios_payload(scenarios)
+    if not is_valid:
+        log_action(f"Scenario file validation failed: {error}", is_error=True)
+        return None
+    return scenarios
 
 def _substitute_placeholders(steps, data_row):
     """Substitutes placeholders like {column_name} in steps with data from a row."""
