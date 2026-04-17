@@ -3,7 +3,6 @@ import sys
 import json
 import time
 import datetime
-import pyautogui
 from logger import log_action
 
 # --- Backend Imports ---
@@ -26,6 +25,15 @@ except ImportError:
 # --- Constants ---
 KB_FILE = os.path.join("knowledge_base", "kb.json")
 SCENARIO_FILE = os.path.join("knowledge_base", "scenarios.json")
+ENGINE_MODE = os.getenv("SMART_CURSOR_ENGINE", "uia").strip().lower()
+SUPPORTED_ENGINES = {"uia", "ocr"}
+
+if ENGINE_MODE not in SUPPORTED_ENGINES:
+    log_action(
+        f"Unknown SMART_CURSOR_ENGINE='{ENGINE_MODE}'. Falling back to 'uia'.",
+        is_error=True,
+    )
+    ENGINE_MODE = "uia"
 
 # --- Data Loading ---
 def get_knowledge_base():
@@ -41,75 +49,96 @@ def get_scenarios():
 # A dictionary to hold all action functions.
 # This makes the main execution block cleaner.
 ACTION_HANDLERS = {}
+ACTION_GROUPS = {
+    "general": set(),
+    "uia": set(),
+    "ocr": set(),
+}
 
-def action_handler(name):
+def action_handler(name, group="general"):
     def decorator(func):
-        ACTION_HANDLERS[f"--{name}"] = func
+        command_name = f"--{name}"
+        ACTION_HANDLERS[command_name] = func
+        ACTION_GROUPS.setdefault(group, set()).add(command_name)
         return func
     return decorator
 
+
+def _is_command_allowed(command_name):
+    if command_name in ACTION_GROUPS["general"]:
+        return True
+    if ENGINE_MODE == "uia" and command_name in ACTION_GROUPS["uia"]:
+        return True
+    if ENGINE_MODE == "ocr" and command_name in ACTION_GROUPS["ocr"]:
+        return True
+    return False
+
+
+def _available_actions():
+    return sorted([name for name in ACTION_HANDLERS.keys() if _is_command_allowed(name)])
+
 # --- Image/OCR Actions ---
-@action_handler("find-image")
+@action_handler("find-image", group="ocr")
 def find_image_and_click(target, **kwargs):
     object_name = target
     # ... (code from previous versions) ...
     return True # Placeholder
 
-@action_handler("find-text")
+@action_handler("find-text", group="ocr")
 def find_text_and_click(target, **kwargs):
     text_to_find = target
     # ... (code from previous versions) ...
     return True # Placeholder
 
-@action_handler("assert-image")
+@action_handler("assert-image", group="ocr")
 def assert_image_exists(target, **kwargs):
     object_name = target
     # ... (code from previous versions) ...
     return True # Placeholder
 
-@action_handler("assert-text")
+@action_handler("assert-text", group="ocr")
 def assert_text_exists(target, **kwargs):
     text_to_find = target
     # ... (code from previous versions) ...
     return True # Placeholder
 
 # --- UIA Actions ---
-@action_handler("start-app")
+@action_handler("start-app", group="uia")
 def start_app_action(target, **kwargs):
     path = target
     if not uia_backend: return False
     return uia_backend.start_app(path)
 
-@action_handler("connect-app")
+@action_handler("connect-app", group="uia")
 def connect_app_action(target, **kwargs):
     title = target
     if not uia_backend: return False
     return uia_backend.connect_to_app(title)
 
-@action_handler("find-uia-name")
+@action_handler("find-uia-name", group="uia")
 def find_uia_by_name(target, **kwargs):
     name = target
     if not uia_backend: return False
     return uia_backend.find_element_by_name(name) is not None
 
-@action_handler("find-uia-id")
+@action_handler("find-uia-id", group="uia")
 def find_uia_by_id(target, **kwargs):
     automation_id = target
     if not uia_backend: return False
     return uia_backend.find_element_by_automation_id(automation_id) is not None
 
-@action_handler("click-uia")
+@action_handler("click-uia", group="uia")
 def click_uia_action(target=None, **kwargs): # Takes an arg but ignores it
     if not uia_backend: return False
     return uia_backend.click_element()
 
-@action_handler("type-uia")
+@action_handler("type-uia", group="uia")
 def type_uia_action(target, **kwargs):
     text = target
     if not uia_backend: return False
     return uia_backend.type_into_element(text)
 
-@action_handler("assert-uia-text")
+@action_handler("assert-uia-text", group="uia")
 def assert_uia_text_action(target, **kwargs):
     expected_text = target
     if not uia_backend: return False
@@ -131,6 +160,22 @@ def wait_action(target, **kwargs):
     except (ValueError, TypeError):
         return False
 
+
+@action_handler("status")
+def status_action(target="", **kwargs):
+    """
+    Prints runtime status as JSON for external callers (e.g., command_interface).
+    """
+    status_payload = {
+        "timestamp": datetime.datetime.now().isoformat(),
+        "engine_mode": ENGINE_MODE,
+        "uia_enabled": bool(uia_backend and getattr(uia_backend, "UIA_ENABLED", False)),
+        "ocr_enabled": bool(pytesseract),
+        "available_actions": _available_actions(),
+    }
+    print(json.dumps(status_payload))
+    return True
+
 # --- Scenario Execution ---
 def execute_scenario(scenario_name):
     scenarios = get_scenarios()
@@ -149,6 +194,12 @@ def execute_scenario(scenario_name):
         handler = ACTION_HANDLERS.get(command_name)
         if not handler:
             log_action(f"Unknown action '{action_name}' in scenario.", is_error=True)
+            return False
+        if not _is_command_allowed(command_name):
+            log_action(
+                f"Action '{action_name}' is disabled in engine mode '{ENGINE_MODE}'.",
+                is_error=True,
+            )
             return False
 
         handler_kwargs = {k: v for k, v in step.items() if k not in {"action", "target"}}
@@ -179,7 +230,7 @@ def print_usage():
     print("--- Smart Cursor: The Universal Automator ---")
     print("\nUsage: python smart_cursor.py --action_name \"argument\"")
     print("\nAvailable Actions:")
-    for name in sorted(ACTION_HANDLERS.keys()):
+    for name in _available_actions():
         print(f"  {name}")
 
 if __name__ == "__main__":
@@ -193,6 +244,12 @@ if __name__ == "__main__":
     handler = ACTION_HANDLERS.get(command)
 
     if handler:
+        if not _is_command_allowed(command):
+            log_action(
+                f"Command '{command}' is disabled in engine mode '{ENGINE_MODE}'.",
+                is_error=True,
+            )
+            sys.exit(1)
         try:
             success = handler(target=argument)
         except TypeError as exc:

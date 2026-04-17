@@ -5,7 +5,6 @@ This script creates a test scenario for checking tradernet.com website.
 import json
 import os
 import time
-import pyautogui
 
 # Paths
 SCENARIO_FILE = os.path.join("knowledge_base", "scenarios.json")
@@ -41,6 +40,7 @@ def create_tradernet_scenario():
 
 def take_screenshot_for_learning(element_name):
     """Helper to take a screenshot of a specific area for learning"""
+    import pyautogui
     print(f"\n[*] Preparing to capture element: {element_name}")
     print("[*] Move your mouse to the element you want to capture...")
     time.sleep(3)

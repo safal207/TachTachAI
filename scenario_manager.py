@@ -2,10 +2,12 @@ import json
 import os
 import sys
 from logger import log_action
+from validation import validate_steps
 
 # --- Constants ---
 SCENARIO_FILE = os.path.join("knowledge_base", "scenarios.json")
 BASELINE_DIR = os.path.join("knowledge_base", "visual_baselines")
+ENGINE_MODE = os.getenv("SMART_CURSOR_ENGINE", "uia").strip().lower()
 
 # --- Programmatic API for Command Interface ---
 
@@ -18,6 +20,10 @@ def create_or_update_scenario(name, steps):
     """
     if not name or not steps:
         log_action("Scenario name and steps cannot be empty.", is_error=True)
+        return False
+    is_valid, error = validate_steps(steps)
+    if not is_valid:
+        log_action(f"Scenario validation failed for '{name}': {error}", is_error=True)
         return False
 
     log_action(f"Programmatically creating/updating scenario: '{name}'")
@@ -82,19 +88,24 @@ def record_scenario_interactive():
 
     print("\n--- Start adding steps to your test case ---")
     print("\nAvailable Action Categories:")
-    print("  - General: type, wait")
-    print("  - Image/OCR: find-image, find-text, assert-image, assert-text, wait-for-image, wait-for-text, assert-visuals")
-    print("  - UIA (Windows): start-app, connect-app, find-uia-name, find-uia-id, type-uia, click-uia, assert-uia-text")
-    print("\nUsage: action \"target\" OR wait-for-* \"target\" <seconds>")
+    print("  - General: wait")
+    if ENGINE_MODE == "ocr":
+        print("  - Image/OCR: find-image, find-text, assert-image, assert-text")
+    else:
+        print("  - UIA (Windows): start-app, connect-app, find-uia-name, find-uia-id, type-uia, click-uia, assert-uia-text")
+    print("\nUsage: action \"target\"")
     print("Type 'done' when you are finished.")
 
     steps = []
-    valid_actions = [
-        "type", "wait", "find-image", "find-text", "assert-image", "assert-text",
-        "wait-for-image", "wait-for-text", "assert-visuals",
-        "start-app", "connect-app", "find-uia-name", "find-uia-id",
-        "type-uia", "click-uia", "assert-uia-text"
-    ]
+    if ENGINE_MODE == "ocr":
+        valid_actions = [
+            "wait", "find-image", "find-text", "assert-image", "assert-text"
+        ]
+    else:
+        valid_actions = [
+            "wait", "start-app", "connect-app", "find-uia-name", "find-uia-id",
+            "type-uia", "click-uia", "assert-uia-text"
+        ]
 
     while True:
         command_input = input(f"Step {len(steps) + 1}: ").strip()
@@ -109,15 +120,9 @@ def record_scenario_interactive():
             print(f"Invalid action '{action}'. Please check the list of available actions.")
             continue
 
-        step = None
         try:
-            if action in ["wait-for-image", "wait-for-text"]:
-                target = " ".join(parts[1:-1]).strip('"\'')
-                timeout = parts[-1]
-                step = {"action": action, "target": target, "timeout": timeout}
-            else:
-                target = " ".join(parts[1:]).strip('"\'')
-                step = {"action": action, "target": target}
+            target = " ".join(parts[1:]).strip('"\'')
+            step = {"action": action, "target": target}
         except IndexError:
             print("Invalid command format.")
             continue

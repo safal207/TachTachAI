@@ -4,10 +4,13 @@ Tests browser automation with Cursor IDE and Google search
 """
 import time
 import subprocess
-import pyautogui
-from pywinauto import Desktop
+import sys
+import pytest
 
-print("=== TachTachAI - Browser Google Search Test ===\n")
+pytestmark = pytest.mark.skipif(
+    sys.platform != "win32",
+    reason="Browser UI test requires interactive Windows GUI session.",
+)
 
 def test_browser_google_search():
     """
@@ -18,7 +21,7 @@ def test_browser_google_search():
     4. Perform search
     5. Verify results
     """
-
+    import pyautogui
     try:
         # Step 1: Launch default browser with Google
         print("[1] Opening browser with Google...")
@@ -96,6 +99,7 @@ def test_cursor_browser_integration():
     print("\n=== Cursor + Browser Integration Test ===\n")
 
     try:
+        from pywinauto import Desktop
         # Step 1: Check if Cursor is running
         print("[1] Checking for Cursor IDE...")
         desktop = Desktop(backend="uia")

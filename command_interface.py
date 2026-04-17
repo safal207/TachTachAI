@@ -8,8 +8,9 @@ from logger import log_action
 # Import functions from our refactored modules
 from test_runner import run_scenario_based_suite, run_data_driven_suite
 from scenario_manager import create_or_update_scenario, delete_visual_baseline
-from performance_tracker import delete_baseline as delete_performance_baseline
+from performance_tracker import create_baseline as create_performance_baseline
 from analysis_packager import create_analysis_package
+from validation import validate_command_payload
 
 # --- Constants ---
 RECOMMENDATIONS_FILE = "recommendations.json"
@@ -71,17 +72,34 @@ def _format_test_report(test_results):
         "tests": test_results
     }
 
+def _get_status(_params):
+    result = subprocess.run(
+        [PYTHON_CMD, "smart_cursor.py", "--status"],
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    if result.returncode != 0:
+        return {"status": "error", "message": result.stderr.strip() or result.stdout.strip()}
+    return {"status": "completed", "data": result.stdout.strip()}
+
+
 command_handlers = {
     "run_tests": lambda p: _format_test_report(run_scenario_based_suite(p.get("scenarios", ["all"]))),
     "run_tests_with_data": lambda p: _format_test_report(run_data_driven_suite(p.get("scenario_name"), p.get("data_file"))),
     "create_scenario": lambda p: {"status": "completed" if create_or_update_scenario(p.get('name'), p.get('steps')) else "error"},
     "update_baseline": lambda p: {"status": "completed" if delete_visual_baseline(p.get('visual_test_name')) else "error"},
-    "create_performance_baseline": lambda p: {"status": "completed" if delete_performance_baseline(p.get('test_name')) else "error"},
-    "get_status": lambda p: {"data": subprocess.run([PYTHON_CMD, "smart_cursor.py", "--status"], capture_output=True, text=True).stdout}
+    "create_performance_baseline": lambda p: {"status": "completed" if create_performance_baseline(p.get('test_name')) else "error"},
+    "get_status": _get_status
 }
 
 def execute_command(command_data):
     """Executes a single command dictionary."""
+    is_valid, error = validate_command_payload(command_data)
+    if not is_valid:
+        log_action(f"Invalid command payload: {error}", is_error=True)
+        return {"status": "error", "message": error}
+
     command_name = command_data.get("command")
     params = command_data.get("params", {})
     handler = command_handlers.get(command_name)
